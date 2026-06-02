@@ -14,23 +14,30 @@ def card_label(c):
 
 
 class ContesaApp:
-    BG       = "#1e1e1e"
-    FG       = "#f0f0f0"
-    MUTED    = "#888888"
-    CARD_BG  = "#2a2a2a"
-    CARD_FG  = "#f0f0f0"
-    SEL_BG   = "#1a4a7a"
-    SEL_FG   = "#90c8ff"
-    SEL_BD   = "#378ADD"
-    BTN_BG   = "#2a2a2a"
-    BTN_FG   = "#f0f0f0"
-    BTN_BD   = "#555555"
-    GREEN    = "#4caf7d"
-    RED      = "#e05c5c"
-    INFO_BG  = "#1a3a5a"
-    INFO_FG  = "#90c8ff"
-    WARN_BG  = "#4a3000"
-    WARN_FG  = "#f0c060"
+    BG             = "#1b1b1f"
+    FG             = "#f4f4f8"
+    MUTED          = "#9aa0ad"
+    CARD_BG        = "#252f3c"
+    CARD_FG        = "#f4f4f8"
+    SEL_BG         = "#22344f"
+    SEL_FG         = "#a8d4ff"
+    SEL_BD         = "#64b5ff"
+    BTN_BG         = "#2b3340"
+    BTN_FG         = "#f4f4f8"
+    BTN_ACTIVE_BG  = "#3a4a61"
+    BTN_ACTIVE_FG  = "#ffffff"
+    BTN_BORDER     = "#4d5c71"
+    GREEN          = "#4caf7d"
+    RED            = "#ef5350"
+    INFO_BG        = "#22303d"
+    INFO_FG        = "#c8ebff"
+    WARN_BG        = "#55372a"
+    WARN_FG        = "#ffd87d"
+    SECTION_BG     = "#222830"
+    PANEL_BG       = "#232b36"
+    LEGEND_BG      = "#1f2430"
+    LEGEND_FG      = "#8b96ad"
+    BANNER_IMAGE_PATH = "banner.png"
 
     def __init__(self, root):
         self.root = root
@@ -51,59 +58,116 @@ class ContesaApp:
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        stats = tk.Frame(self.root, bg=self.BG)
-        stats.pack(fill="x", padx=10, pady=(10, 4))
+        tk.Label(self.root, text="Contesa dei Veggenti", bg=self.BG, fg=self.FG,
+                 font=self.big).pack(fill="x", padx=10, pady=(10, 0))
+        tk.Label(self.root, text="Tracker avanzato con AI per analizzare le giocate.",
+                 bg=self.BG, fg=self.MUTED, font=self.small).pack(fill="x", padx=10, pady=(0, 10))
+
+        stats = tk.Frame(self.root, bg=self.SECTION_BG, padx=10, pady=10)
+        stats.pack(fill="x", padx=10, pady=(0, 8))
         self.lbl_turn   = self._stat_box(stats, "Turno",    "-")
         self.lbl_wins   = self._stat_box(stats, "Vittorie", "0", self.GREEN)
         self.lbl_losses = self._stat_box(stats, "Sconfitte","0", self.RED)
         self.lbl_coins  = self._stat_box(stats, "Monete",   "0")
 
-        tk.Frame(self.root, bg="#333", height=1).pack(fill="x", padx=10, pady=4)
+        self.cpu_section = tk.LabelFrame(self.root, text="Mazzo Computer", bg=self.SECTION_BG,
+                                         fg=self.FG, font=self.small, labelanchor="nw",
+                                         bd=1, relief="groove", padx=8, pady=8)
+        self.cpu_section.pack(fill="x", padx=10, pady=(0, 8))
 
-        # MAZZO DEL COMPUTER INTERATTIVO
-        tk.Label(self.root, text="MAZZO COMPUTER (Clicca per scartare/recuperare carte)",
-                 bg=self.BG, fg=self.MUTED, font=self.small, anchor="w").pack(fill="x", padx=10, pady=(4,2))
-        self.cpu_deck_frame = tk.Frame(self.root, bg=self.BG)
-        self.cpu_deck_frame.pack(fill="x", padx=10, pady=(0,4))
+        header = tk.Frame(self.cpu_section, bg=self.SECTION_BG)
+        header.pack(fill="x", pady=(0, 8))
+        tk.Label(header, text="Clicca per scartare/recuperare carte.",
+                 bg=self.SECTION_BG, fg=self.MUTED, font=self.small).pack(side="left")
+        self._btn(header, "Ripristina mazzo", self._reset_cpu_deck,
+                  bg=self.BTN_BG, fg=self.BTN_FG).pack(side="right", padx=(8,0))
+        self.cpu_count_lbl = tk.Label(header, text="Carte possibili: 9", bg=self.SECTION_BG,
+                                      fg=self.FG, font=self.small)
+        self.cpu_count_lbl.pack(side="right")
 
-        tk.Frame(self.root, bg="#333", height=1).pack(fill="x", padx=10, pady=4)
+        self.cpu_deck_frame = tk.Frame(self.cpu_section, bg=self.PANEL_BG, bd=1, relief="sunken",
+                                       padx=10, pady=10)
+        self.cpu_deck_frame.pack(fill="x")
 
-        self.main_frame = tk.Frame(self.root, bg=self.BG)
-        self.main_frame.pack(fill="x", padx=10, pady=4)
+        self.activity_section = tk.LabelFrame(self.root, text="Turno e scelta", bg=self.SECTION_BG,
+                                             fg=self.FG, font=self.small, labelanchor="nw",
+                                             bd=1, relief="groove", padx=8, pady=8)
+        self.activity_section.pack(fill="x", padx=10, pady=(0, 8))
+        self.main_frame = tk.Frame(self.activity_section, bg=self.SECTION_BG)
+        self.main_frame.pack(fill="x")
 
-        tk.Frame(self.root, bg="#333", height=1).pack(fill="x", padx=10, pady=4)
+        tk.Label(self.root, text="Legenda: ♠ = pari / ♡ = dispari", bg=self.BG,
+                 fg=self.LEGEND_FG, font=self.small).pack(fill="x", padx=10, pady=(0, 8))
 
-        tk.Label(self.root, text="LOG PARTITA",
-                 bg=self.BG, fg=self.MUTED, font=self.small, anchor="w").pack(fill="x", padx=10, pady=(4,2))
-        self.log_text = tk.Text(self.root, height=7, bg=self.CARD_BG, fg=self.FG,
+        self.log_section = tk.LabelFrame(self.root, text="Log partita", bg=self.SECTION_BG,
+                                         fg=self.FG, font=self.small, labelanchor="nw",
+                                         bd=1, relief="groove", padx=8, pady=8)
+        self.log_section.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+
+        self.log_text = tk.Text(self.log_section, height=7, bg=self.CARD_BG, fg=self.FG,
                                 font=self.small, relief="flat", state="disabled",
-                                wrap="word", borderwidth=0)
-        self.log_text.pack(fill="x", padx=10, pady=(0,6))
-
-        tk.Frame(self.root, bg="#333", height=1).pack(fill="x", padx=10, pady=4)
+                                wrap="word", borderwidth=0, highlightthickness=0)
+        self.log_text.pack(fill="both", side="left", expand=True)
+        scrollbar = tk.Scrollbar(self.log_section, command=self.log_text.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.log_text.config(yscrollcommand=scrollbar.set)
 
         bot = tk.Frame(self.root, bg=self.BG)
-        bot.pack(fill="x", padx=10, pady=(4,10))
-        self._btn(bot, "Nuova partita", self._init_game).pack(side="left")
-        self.undo_btn = self._btn(bot, "Undo", self._undo, bg="#444444", fg=self.FG, state="disabled")
+        bot.pack(fill="x", padx=10, pady=(0, 8))
+        self._btn(bot, "Nuova partita", self._init_game, bg=self.BTN_BG, fg=self.BTN_FG).pack(side="left")
+        self.undo_btn = self._btn(bot, "Undo", self._undo, bg="#3b3f48", fg=self.FG, state="disabled")
         self.undo_btn.pack(side="left", padx=(8,0))
         self.gomsg = tk.Label(bot, text="", bg=self.BG, fg=self.GREEN, font=self.bold)
         self.gomsg.pack(side="left", padx=12)
 
+        self.banner_frame = tk.Frame(self.root, bg=self.BG)
+        self.banner_frame.pack(fill="x", padx=10, pady=(0, 10))
+        self.banner_label = tk.Label(self.banner_frame, bg=self.BG, fg=self.MUTED,
+                                     font=self.small, text=f"Posiziona {self.BANNER_IMAGE_PATH} nella cartella e verrà mostrata qui.")
+        self.banner_label.pack(fill="x")
+        self.banner_photo = None
+        self._load_banner_image()
+
     def _stat_box(self, parent, label, value, color=None):
-        f = tk.Frame(parent, bg="#2a2a2a", padx=12, pady=6)
+        f = tk.Frame(parent, bg=self.SECTION_BG, padx=12, pady=8)
         f.pack(side="left", expand=True, fill="x", padx=3)
-        tk.Label(f, text=label, bg="#2a2a2a", fg=self.MUTED, font=self.small).pack()
-        lbl = tk.Label(f, text=value, bg="#2a2a2a", fg=color or self.FG, font=self.big)
+        tk.Label(f, text=label, bg=self.SECTION_BG, fg=self.MUTED, font=self.small).pack()
+        lbl = tk.Label(f, text=value, bg=self.SECTION_BG, fg=color or self.FG, font=self.big)
         lbl.pack()
         return lbl
 
     def _btn(self, parent, text, cmd, bg=None, fg=None, state="normal"):
         return tk.Button(parent, text=text, command=cmd,
                          bg=bg or self.BTN_BG, fg=fg or self.BTN_FG,
-                         font=self.normal, relief="flat", bd=0,
-                         activebackground="#444", activeforeground=self.FG,
-                         padx=12, pady=5, cursor="hand2", state=state)
+                         font=self.normal, relief="flat", bd=1,
+                         activebackground=self.BTN_ACTIVE_BG, activeforeground=self.BTN_ACTIVE_FG,
+                         highlightbackground=self.BTN_BORDER, highlightthickness=1,
+                         padx=14, pady=6, cursor="hand2", state=state)
+
+    def _load_banner_image(self):
+        try:
+            from PIL import Image, ImageTk
+            image = Image.open(self.BANNER_IMAGE_PATH)
+            max_width = 740
+            ratio = min(max_width / image.width, 1.0)
+            if ratio < 1.0:
+                image = image.resize((int(image.width * ratio), int(image.height * ratio)), Image.LANCZOS)
+            self.banner_photo = ImageTk.PhotoImage(image)
+        except Exception:
+            try:
+                self.banner_photo = tk.PhotoImage(file=self.BANNER_IMAGE_PATH)
+            except Exception:
+                self.banner_photo = None
+
+        if self.banner_photo:
+            self.banner_label.config(image=self.banner_photo, text="")
+        else:
+            self.banner_label.config(text=f"Posiziona {self.BANNER_IMAGE_PATH} nella cartella e verrà mostrata qui.")
+
+    def _reset_cpu_deck(self):
+        self.cpu_possible = list(ALL_CARDS)
+        self._render_cpu_deck()
+        self._render_main()
 
     # ── GAME LOGIC & AI ───────────────────────────────────────────────────────
 
@@ -217,11 +281,6 @@ class ContesaApp:
         if not self.turn_history:
             return manual
 
-        used_by_user = set(ALL_CARDS) - set(self.my_hand)
-        manual -= used_by_user
-        if not manual:
-            return set()
-
         allowed_options = []
         for item in self.turn_history:
             color = item["cpu_color"]
@@ -278,18 +337,22 @@ class ContesaApp:
          "feedback": self._render_feedback}[self.phase]()
 
     def _render_cpu_deck(self):
+        possible_count = len(self.cpu_possible)
+        self.cpu_count_lbl.config(text=f"Carte possibili: {possible_count}",
+                                  fg=self.RED if possible_count == 1 else self.FG)
+
         for w in self.cpu_deck_frame.winfo_children():
             w.destroy()
             
         for c in ALL_CARDS:
             is_active = c in self.cpu_possible
-            bg = self.CARD_BG if is_active else self.BG
-            fg = self.CARD_FG if is_active else "#444444"
-            bd = ("#aaaaaa" if is_black(c) else "#555555") if is_active else "#222222"
+            bg = self.CARD_BG if is_active else self.SECTION_BG
+            fg = self.CARD_FG if is_active else self.MUTED
+            bd = self.SEL_BD if is_active else self.BTN_BORDER
 
             outer = tk.Frame(self.cpu_deck_frame, bg=bd, padx=1, pady=1)
-            outer.pack(side="left", padx=2)
-            inner = tk.Frame(outer, bg=bg, width=42, height=55)
+            outer.pack(side="left", padx=3)
+            inner = tk.Frame(outer, bg=bg, width=48, height=66, bd=1, relief="solid")
             inner.pack()
             inner.pack_propagate(False)
             
