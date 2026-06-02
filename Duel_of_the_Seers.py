@@ -263,6 +263,17 @@ class ContesaApp:
         if not self.my_hand:
             return []
 
+        # Prime due mosse: suggerimenti fissi
+        if self.turn == 1:
+            return [{"card": 0, "pct": 0, "fixed": "Apertura consigliata"}]
+        
+        if self.turn == 2:
+            if 1 in self.my_hand:
+                return [{"card": 1, "pct": 0, "fixed": "Continuazione consigliata"}]
+            else:
+                return []
+
+        # Dal turno 3 in poi: logica standard
         if self.cpu_color is None:
             if not self.cpu_possible:
                 return []
@@ -470,27 +481,21 @@ class ContesaApp:
         suggestions = self._get_suggestion()
 
         if suggestions:
-
-            if self.cpu_color is None:
-
-                best = suggestions[0]
-
-                text = (
-                    f"💡 Suggerimento AI: Apri con il "
-                    f"{card_label(best['card'])}"
-                )
-
+            best = suggestions[0]
+            
+            if "fixed" in best:
+                text = f"💡 {best['fixed']}: {card_label(best['card'])}"
+            elif self.turn == 1 or self.turn == 2:
+                text = f"💡 Suggerimento AI: Gioca {card_label(best['card'])}"
+            elif len(suggestions) == 1:
+                text = f"💡 Suggerimento AI: Gioca {card_label(best['card'])} ({best['pct']}%)"
             else:
-
                 righe = []
-
                 medals = ["🥇", "🥈", "🥉"]
-
                 for i, item in enumerate(suggestions):
                     righe.append(
                         f"{medals[i]} {card_label(item['card'])} → {item['pct']}%"
                     )
-
                 text = (
                     "💡 Migliori giocate:\n" +
                     "\n".join(righe)
