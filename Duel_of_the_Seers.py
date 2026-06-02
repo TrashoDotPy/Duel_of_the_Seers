@@ -1,7 +1,15 @@
 import tkinter as tk
 from tkinter import font as tkfont
+import os
+
+try:
+    from PIL import Image, ImageTk
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 ALL_CARDS = list(range(9))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def is_black(c):
     return c % 2 == 0
@@ -37,7 +45,7 @@ class ContesaApp:
     PANEL_BG       = "#232b36"
     LEGEND_BG      = "#1f2430"
     LEGEND_FG      = "#8b96ad"
-    BANNER_IMAGE_PATH = "banner.png"
+    BANNER_IMAGE_PATH = os.path.join(SCRIPT_DIR, "banner.png")
 
     def __init__(self, root):
         self.root = root
@@ -104,7 +112,7 @@ class ContesaApp:
                                          bd=1, relief="groove", padx=8, pady=8)
         self.log_section.pack(fill="both", expand=True, padx=10, pady=(0, 8))
 
-        self.log_text = tk.Text(self.log_section, height=7, bg=self.CARD_BG, fg=self.FG,
+        self.log_text = tk.Text(self.log_section, height=5, bg=self.CARD_BG, fg=self.FG,
                                 font=self.small, relief="flat", state="disabled",
                                 wrap="word", borderwidth=0, highlightthickness=0)
         self.log_text.pack(fill="both", side="left", expand=True)
@@ -121,10 +129,10 @@ class ContesaApp:
         self.gomsg.pack(side="left", padx=12)
 
         self.banner_frame = tk.Frame(self.root, bg=self.BG)
-        self.banner_frame.pack(fill="x", padx=10, pady=(0, 10))
+        self.banner_frame.pack(fill="both", padx=10, pady=(0, 10))
         self.banner_label = tk.Label(self.banner_frame, bg=self.BG, fg=self.MUTED,
-                                     font=self.small, text=f"Posiziona {self.BANNER_IMAGE_PATH} nella cartella e verrà mostrata qui.")
-        self.banner_label.pack(fill="x")
+                                     font=self.small, text=f"Caricamento banner...")
+        self.banner_label.pack(fill="both", expand=True)
         self.banner_photo = None
         self._load_banner_image()
 
@@ -145,24 +153,33 @@ class ContesaApp:
                          padx=14, pady=6, cursor="hand2", state=state)
 
     def _load_banner_image(self):
-        try:
-            from PIL import Image, ImageTk
-            image = Image.open(self.BANNER_IMAGE_PATH)
-            max_width = 740
-            ratio = min(max_width / image.width, 1.0)
-            if ratio < 1.0:
-                image = image.resize((int(image.width * ratio), int(image.height * ratio)), Image.LANCZOS)
-            self.banner_photo = ImageTk.PhotoImage(image)
-        except Exception:
-            try:
-                self.banner_photo = tk.PhotoImage(file=self.BANNER_IMAGE_PATH)
-            except Exception:
-                self.banner_photo = None
+        if not os.path.exists(self.BANNER_IMAGE_PATH):
+            self.banner_label.config(text="Immagine banner non trovata.")
+            self.banner_photo = None
+            return
 
-        if self.banner_photo:
-            self.banner_label.config(image=self.banner_photo, text="")
-        else:
-            self.banner_label.config(text=f"Posiziona {self.BANNER_IMAGE_PATH} nella cartella e verrà mostrata qui.")
+        if HAS_PIL:
+            try:
+                image = Image.open(self.BANNER_IMAGE_PATH)
+                max_width = 700
+                max_height = 180
+                ratio = min(max_width / image.width, max_height / image.height, 1.0)
+                if ratio < 1.0:
+                    try:
+                        resample = Image.Resampling.LANCZOS
+                    except AttributeError:
+                        resample = 3
+                    new_width = int(image.width * ratio)
+                    new_height = int(image.height * ratio)
+                    image = image.resize((new_width, new_height), resample)
+                self.banner_photo = ImageTk.PhotoImage(image)
+                self.banner_label.config(image=self.banner_photo, text="")
+                return
+            except Exception as e:
+                pass
+
+        self.banner_label.config(text="Installa Pillow per mostrare il banner: pip install Pillow")
+        self.banner_photo = None
 
     def _reset_cpu_deck(self):
         self.cpu_possible = list(ALL_CARDS)
@@ -670,6 +687,6 @@ class ContesaApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry("600x720")
+    root.geometry("600x900")
     app = ContesaApp(root)
     root.mainloop()
