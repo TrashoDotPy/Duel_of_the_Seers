@@ -194,6 +194,7 @@ class ContesaApp:
         self.turn          = 1
         self.wins          = 0
         self.losses        = 0
+        self.ties          = 0
         self.coins         = 0
         self.done          = False
         self.who_first     = None
@@ -535,6 +536,7 @@ class ContesaApp:
             "turn": self.turn,
             "wins": self.wins,
             "losses": self.losses,
+            "ties": self.ties,
             "coins": self.coins,
             "done": self.done,
             "who_first": self.who_first,
@@ -556,6 +558,7 @@ class ContesaApp:
         self.turn         = state["turn"]
         self.wins         = state["wins"]
         self.losses       = state["losses"]
+        self.ties         = state.get("ties", 0)
         self.coins        = state["coins"]
         self.done         = state["done"]
         self.who_first    = state["who_first"]
@@ -642,9 +645,9 @@ class ContesaApp:
 
         if self.feedback == "win":
             self.wins  += 1
-            self.coins += 1
             res = "Vinto +1"
         elif self.feedback == "par":
+            self.ties += 1
             res = "Pari"
         else:
             self.losses += 1
@@ -672,8 +675,15 @@ class ContesaApp:
 
         if not self.my_hand:
             self.done = True
+            cpu_score = self.losses
+            my_score = self.wins
+            score_diff = my_score - cpu_score
+            if score_diff > 0:
+                self.coins = self.wins + score_diff
+            else:
+                self.coins = self.wins
             self.gomsg.config(
-                text=f"Partita Conclusa! {self.wins} vittorie, {self.losses} sconfitte, {self.coins} monete.")
+                text=f"Partita Conclusa! {self.wins} vitt, {self.losses} scf, {self.ties} par → {self.coins} monete.")
 
         self._update_stats()
         self._render_cpu_deck()
