@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import font as tkfont
-import os
+import os, sys
+
 
 try:
     from PIL import Image, ImageTk
@@ -10,6 +11,17 @@ except ImportError:
 
 ALL_CARDS = list(range(9))
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def resource_path(relative_path):
+    """ Ottiene il percorso assoluto della risorsa, compatibile con dev e PyInstaller """
+    try:
+        # PyInstaller crea una cartella temporanea e memorizza il percorso in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 
 def is_black(c):
     return c % 2 == 0
@@ -45,7 +57,7 @@ class ContesaApp:
     PANEL_BG       = "#232b36"
     LEGEND_BG      = "#1f2430"
     LEGEND_FG      = "#8b96ad"
-    BANNER_IMAGE_PATH = os.path.join(SCRIPT_DIR, "banner.png")
+    BANNER_IMAGE_PATH = resource_path("banner.png")
 
     def __init__(self, root):
         self.root = root
