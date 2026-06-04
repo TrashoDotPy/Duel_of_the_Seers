@@ -18,7 +18,7 @@ def resource_path(relative_path):
         # PyInstaller crea una cartella temporanea e memorizza il percorso in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.abspath(".")
+        base_path = SCRIPT_DIR
 
     return os.path.join(base_path, relative_path)
 
@@ -80,11 +80,13 @@ class ContesaApp:
     def _build_ui(self):
         tk.Label(self.root, text="Contesa dei Veggenti", bg=self.BG, fg=self.FG,
                  font=self.big).pack(fill="x", padx=10, pady=(10, 0))
-        tk.Label(self.root, text="Tracker avanzato con AI per analizzare le giocate.",
-                 bg=self.BG, fg=self.MUTED, font=self.small).pack(fill="x", padx=10, pady=(0, 10))
+        tk.Label(self.root,
+                 text="Obiettivo: identifica le carte ancora possibili del computer e registra il risultato di ogni turno.",
+                 bg=self.BG, fg=self.FG, font=self.normal, wraplength=580, justify="left").pack(fill="x", padx=10, pady=(0, 10))
 
         stats = tk.Frame(self.root, bg=self.SECTION_BG, padx=10, pady=10)
         stats.pack(fill="x", padx=10, pady=(0, 8))
+        self.stats_frame = stats
         self.lbl_turn   = self._stat_box(stats, "Turno",    "-")
         self.lbl_wins   = self._stat_box(stats, "Vittorie", "0", self.GREEN)
         self.lbl_losses = self._stat_box(stats, "Sconfitte","0", self.RED)
@@ -203,7 +205,7 @@ class ContesaApp:
     def _init_game(self):
         self.my_hand       = list(ALL_CARDS)
         self.cpu_possible  = list(ALL_CARDS)
-        self.turn          = 1
+        self.turn          = 0
         self.wins          = 0
         self.losses        = 0
         self.ties          = 0
@@ -229,6 +231,41 @@ class ContesaApp:
         self.lbl_wins.config(text=str(self.wins))
         self.lbl_losses.config(text=str(self.losses))
         self.lbl_coins.config(text=str(self.coins))
+
+    def _update_section_styles(self):
+        action_active = self.phase in ("setup", "action", "feedback")
+        cpu_active = self.phase == "action"
+
+        active_bg = self.SECTION_BG
+        inactive_bg = "#15171c"
+        active_bd = 2
+        inactive_bd = 1
+
+        self.cpu_section.config(bg=active_bg if cpu_active else inactive_bg,
+                                bd=active_bd if cpu_active else inactive_bd)
+        self.activity_section.config(bg=active_bg if action_active else inactive_bg,
+                                     bd=active_bd if action_active else inactive_bd)
+        self.main_frame.config(bg=active_bg if action_active else inactive_bg)
+
+        self.cpu_count_lbl.config(fg=self.FG if cpu_active else self.MUTED)
+        for child in self.cpu_section.winfo_children():
+            try:
+                child.config(bg=active_bg if cpu_active else inactive_bg)
+            except tk.TclError:
+                pass
+
+        for child in self.activity_section.winfo_children():
+            if child is self.main_frame:
+                continue
+            try:
+                child.config(bg=active_bg if action_active else inactive_bg)
+            except tk.TclError:
+                pass
+
+        self.stats_frame.config(bg=inactive_bg)
+        self.log_section.config(bg=inactive_bg)
+        self.banner_frame.config(bg=inactive_bg)
+        self.banner_label.config(bg=inactive_bg)
 
     def _effective_cpu(self):
         if self.cpu_color is None:
@@ -277,10 +314,10 @@ class ContesaApp:
             return []
 
         # Prime due mosse: suggerimenti fissi
-        if self.turn == 1:
+        if self.turn == 0:
             return [{"card": 0, "pct": 0, "fixed": "Apertura consigliata"}]
         
-        if self.turn == 2:
+        if self.turn == 1:
             if 1 in self.my_hand:
                 return [{"card": 1, "pct": 0, "fixed": "Continuazione consigliata"}]
             else:
@@ -370,6 +407,7 @@ class ContesaApp:
                  font=self.small, anchor="w").pack(fill="x", pady=(8,3))
 
     def _render_main(self):
+        self._update_section_styles()
         self._clear_main()
         if self.done:
             return
@@ -428,7 +466,6 @@ class ContesaApp:
         self._render_main()
 
     def _render_action(self):
-        self._section(f"Turno {self.turn}/9 — Imposta la giocata")
 
         # --- ALLARMI AI ---
         warnings = self._get_warnings()
@@ -443,7 +480,10 @@ class ContesaApp:
 
         def pick_color(col):
             self.cpu_color = col
-            self._render_main()
+            if self.my_card is not None:
+                self._go_feedback()
+            else:
+                self._render_main()
 
         for label, col in [("Nera ♠ (Pari)", "black"), ("Bianca ♡ (Dispari)", "white")]:
             bg = "#1a3a2a" if self.cpu_color == col else self.BTN_BG
@@ -485,7 +525,10 @@ class ContesaApp:
 
             def on_click(card=c):
                 self.my_card = card
-                self._render_main()
+                if self.cpu_color is not None:
+                    self._go_feedback()
+                else:
+                    self._render_main()
 
             for w in [inner] + inner.winfo_children():
                 w.bind("<Button-1>", lambda e, f=on_click: f())
@@ -498,7 +541,7 @@ class ContesaApp:
             
             if "fixed" in best:
                 text = f"💡 {best['fixed']}: {card_label(best['card'])}"
-            elif self.turn == 1 or self.turn == 2:
+            elif self.turn == 0 or self.turn == 1:
                 text = f"💡 Suggerimento AI: Gioca {card_label(best['card'])}"
             elif len(suggestions) == 1:
                 text = f"💡 Suggerimento AI: Gioca {card_label(best['card'])} ({best['pct']}%)"
@@ -590,20 +633,24 @@ class ContesaApp:
         self.undo_btn.config(state="normal" if self.history else "disabled")
 
     def _render_feedback(self):
-        self._section(f"Rispetto alla tua carta {card_label(self.my_card)}, il computer ha...")
+        self._section(f"Rispetto alla tua carta {card_label(self.my_card)}, qual è il risultato?")
 
         row = tk.Frame(self.main_frame, bg=self.BG)
         row.pack(anchor="w", pady=4)
 
         for label, val, sel_bg, sel_fg in [
-            ("Perso (tua è più alta)",  "win",  "#1a3a2a", self.GREEN),
-            ("Pari",                    "par",  "#333333", self.FG),
-            ("Vinto (tua è più bassa)", "lose", "#3a1a1a", self.RED),
+            ("Hai vinto",  "win",  "#1a3a2a", self.GREEN),
+            ("Pari",            "par",  "#333333", self.FG),
+            ("Hai perso", "lose", "#3a1a1a", self.RED),
         ]:
             sel = self.feedback == val
             self._btn(row, label, lambda v=val: self._set_feedback(v),
                       bg=sel_bg if sel else self.BTN_BG,
                       fg=sel_fg if sel else self.BTN_FG).pack(side="left", padx=(0,6))
+
+        tk.Label(self.main_frame,
+                 text="Indica se il tuo punteggio è stato una vittoria, un pareggio o una sconfitta.",
+                 bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(8,0))
 
         if self.feedback is not None:
             surv = self._surviving()
@@ -629,7 +676,10 @@ class ContesaApp:
 
     def _set_feedback(self, val):
         self.feedback = val
-        self._render_main()
+        if len(self._surviving()) > 0:
+            self._confirm_turn()
+        else:
+            self._render_main()
 
     def _go_back(self):
         self.phase = "action"
