@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import font as tkfont
 import os, sys
+from datetime import datetime
+import json
 
 
 try:
@@ -746,6 +748,11 @@ class ContesaApp:
                 self.coins = self.wins
             self.gomsg.config(
                 text=f"Partita Conclusa! {self.wins} vitt, {self.losses} scf, {self.ties} par → {self.coins} monete.")
+            # Salva i log della partita appena conclusa
+            try:
+                self._save_game_log()
+            except Exception:
+                pass
 
         self._update_stats()
         self._render_cpu_deck()
@@ -760,6 +767,67 @@ class ContesaApp:
         self.log_text.config(state="normal")
         self.log_text.delete("1.0", "end")
         self.log_text.config(state="disabled")
+
+    def _save_game_log(self):
+        """Salva l'intero log della partita su logs.txt nella cartella principale del progetto."""
+        try:
+            # Use script directory as project root (logs are next to the script)
+            project_root = SCRIPT_DIR
+
+            # Choose file based on who started
+            if self.who_first == "me":
+                target_file = "logs_IO.txt"
+            else:
+                target_file = "logs_PC.txt"
+
+            logs_path = os.path.join(project_root, target_file)
+
+            sep = "#" * 60
+            header = f"==== Partita: {datetime.now().isoformat()} ===="
+            started_by = "Iniziata da: Giocatore" if self.who_first == "me" else "Iniziata da: Computer"
+            final = (
+                f"Vittorie: {self.wins}, Sconfitte: {self.losses}, "
+                f"Pari: {self.ties}, Monete: {self.coins}"
+            )
+
+            lines = [sep, header, started_by, final, "Turni:"]
+            for i, t in enumerate(self.turn_history):
+                card = card_label(t.get("my_card")) if t.get("my_card") is not None else "-"
+                color = t.get("cpu_color") or "-"
+                fb = t.get("feedback") or "-"
+                lines.append(f"T{i}: {card} vs {color} -> {fb}")
+
+            lines.append("Log GUI:")
+            gui_log = self.log_text.get("1.0", "end").strip()
+            if gui_log:
+                lines.extend(gui_log.splitlines())
+
+            lines.append(sep)
+
+            with open(logs_path, "a", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+
+            # Also append a JSON record (ndjson) for easier analysis
+            json_obj = {
+                "timestamp": datetime.now().isoformat(),
+                "started_by": "me" if self.who_first == "me" else "cpu",
+                "wins": self.wins,
+                "losses": self.losses,
+                "ties": self.ties,
+                "coins": self.coins,
+                "turn_history": self.turn_history,
+            }
+            json_path = os.path.splitext(logs_path)[0] + ".json"
+            try:
+                with open(json_path, "a", encoding="utf-8") as jf:
+                    jf.write(json.dumps(json_obj, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+
+            # Mostra conferma all'utente
+            self._log(f"Log salvato su {logs_path}")
+        except Exception as e:
+            self._log(f"Errore salvataggio log: {e}")
 
 
 if __name__ == "__main__":
