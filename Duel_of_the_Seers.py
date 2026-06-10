@@ -776,9 +776,6 @@ class ContesaApp:
             "feedback": self.feedback,
         })
 
-        if self.my_card in self.my_hand:
-            self.my_hand.remove(self.my_card)
-
         self.cpu_possible = sorted(self._deduce_cpu_remaining())
 
         self.turn     += 1
