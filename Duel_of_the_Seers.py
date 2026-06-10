@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import font as tkfont
 import os, sys
 from datetime import datetime
+from functools import lru_cache
 import json
 
 
@@ -309,52 +310,90 @@ class ContesaApp:
             
         return warnings
 
-    def _get_suggestion(self):
-        """Restituisce le migliori carte da giocare ordinate per probabilità e conservazione."""
+    @staticmethod
+    def _coins(w, l):
+        """Monete Veggenza: punti + margine se vinci la manche (regola ufficiale)."""
+        return w + (w - l if w > l else 0)
 
-        if not self.my_hand:
-            return []
+    def _exact_coin_scores(self, hand, cpu_set, color):
+        """Monete attese esatte per ogni mia carta, modellando il PC come uniforme
+        sul set ancora possibile (i log mostrano che il PC gioca indipendentemente
+        dalla mia carta). Il turno corrente è condizionato sul colore se già visibile.
+        Ritorna [(carta, monete_attese, pct_vittoria), ...] ordinato dal migliore."""
+        H0 = frozenset(hand)
+        R0 = frozenset(cpu_set)
 
-        # Prime due mosse: suggerimenti fissi
-        if self.turn == 0:
-            return [{"card": 0, "pct": 0, "fixed": "Apertura consigliata"}]
-        
-        if self.turn == 1:
-            if 1 in self.my_hand:
-                return [{"card": 1, "pct": 0, "fixed": "Continuazione consigliata"}]
-            else:
-                return []
+        @lru_cache(maxsize=None)
+        def ec(H, R, w, l):
+            if not H:
+                return self._coins(w, l)
+            best = -1.0
+            for c in H:
+                tot = len(R)
+                if tot == 0:
+                    v = ec(H - frozenset((c,)), R, w, l)
+                else:
+                    s = 0.0
+                    for d in R:
+                        s += ec(H - frozenset((c,)), R - frozenset((d,)),
+                                w + (1 if c > d else 0), l + (1 if c < d else 0))
+                    v = s / tot
+                if v > best:
+                    best = v
+            return best
 
-        # Dal turno 3 in poi: logica standard
-        if self.cpu_color is None:
-            if not self.cpu_possible:
-                return []
-            card_pcts = {c: round(sum(1 for x in self.cpu_possible if c > x) / len(self.cpu_possible) * 100)
-                         for c in self.my_hand}
+        if color is not None:
+            pool = [d for d in R0 if (is_black(d) if color == "black" else not is_black(d))]
+            if not pool:
+                pool = list(R0)
         else:
-            eff = self._effective_cpu()
-            total = len(eff)
-            if total == 0:
-                return []
-            if self.my_card is not None:
-                return []
-            card_pcts = {c: round(sum(1 for x in eff if c > x) / total * 100)
-                         for c in self.my_hand}
+            pool = list(R0)
 
-        if not card_pcts:
+        scores = []
+        for c in sorted(hand):
+            s = 0.0
+            for d in pool:
+                s += ec(H0 - frozenset((c,)), R0 - frozenset((d,)),
+                        1 if c > d else 0, 1 if c < d else 0)
+            ecoins = s / len(pool)
+            pct = round(sum(1 for d in pool if c > d) / len(pool) * 100)
+            scores.append((c, ecoins, pct))
+        scores.sort(key=lambda x: (-x[1], x[0]))
+        return scores
+
+    def _get_suggestion(self):
+        """Migliori carte da giocare: massimizza le MONETE attese sfruttando il set
+        dedotto del PC e, quando visibile, il suo colore."""
+        if not self.my_hand or self.my_card is not None:
             return []
 
-        # Conservazione risorse: preferiamo carte più basse se la probabilità è simile.
-        card_scores = {c: card_pcts[c] - c * 2.5 for c in self.my_hand}
-        sorted_cards = sorted(self.my_hand, key=lambda c: (-card_scores[c], c))
+        eff = self._effective_cpu()
+        if not eff:
+            return []
 
-        # Se la probabilità massima è bassa, usiamo un sacrificio conservativo.
-        max_pct = max(card_pcts.values())
-        if max_pct < 35:
-            lowest = sorted(self.my_hand)
-            return [{"card": lowest[0], "pct": card_pcts[lowest[0]]}]
+        # Late-game / set ristretto: calcolo esatto delle monete attese.
+        if len(self.my_hand) <= 6 and len(self.cpu_possible) <= 7:
+            scores = self._exact_coin_scores(self.my_hand, self.cpu_possible, self.cpu_color)
+            return [{"card": c, "pct": pct} for (c, _ec, pct) in scores[:3]]
 
-        return [{"card": c, "pct": card_pcts[c]} for c in sorted_cards[:3]]
+        # Early-game / set ancora ampio: euristica di conservazione.
+        total = len(eff)
+        def pct(c):
+            return round(sum(1 for d in eff if c > d) / total * 100)
+
+        if self.cpu_color is not None:
+            # Colore visibile: vinci in modo efficiente con la minima carta che
+            # supera la più bassa del PC, conservando le carte alte.
+            lo = min(eff)
+            winners = [c for c in sorted(self.my_hand) if c > lo]
+            ranked = (winners + [c for c in sorted(self.my_hand) if c <= lo]) if winners \
+                     else sorted(self.my_hand)
+        else:
+            # Nessuna info sul colore: 0 e 1 non vincono mai (dai log) → sacrifica
+            # dal basso e conserva le carte alte.
+            ranked = sorted(self.my_hand)
+
+        return [{"card": c, "pct": pct(c)} for c in ranked[:3]]
 
     def _deduce_cpu_remaining(self):
         manual = set(self.cpu_possible)
@@ -474,6 +513,17 @@ class ContesaApp:
         for w in warnings:
             tk.Label(self.main_frame, text=f"⚠️ ATTENZIONE: {w}", bg=self.WARN_BG, fg=self.WARN_FG,
                      font=self.bold, padx=10, pady=4, anchor="w").pack(fill="x", pady=(0, 6))
+
+        # --- INSIGHT DAI LOG REALI ---
+        if self.who_first == "cpu":
+            tip = ("📊 Inizia il PC: imposta prima il suo COLORE qui sotto, poi scegli la carta — "
+                   "il suggerimento sfrutta quell'informazione (vale ~1 moneta in più a partita).")
+        else:
+            tip = ("📊 Il PC gioca a caso e non contrasta la tua carta: 0–1 non vincono mai "
+                   "(sacrificali), le carte ≥4 vincono quasi sempre.")
+        tk.Label(self.main_frame, text=tip, bg=self.INFO_BG, fg=self.INFO_FG,
+                 font=self.small, padx=10, pady=4, anchor="w", justify="left",
+                 wraplength=560).pack(fill="x", pady=(0, 6))
 
         # 1. Scelta colore computer
         tk.Label(self.main_frame, text="1. CHE COLORE HA GIOCATO IL COMPUTER?", bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(0,2))
