@@ -323,3 +323,28 @@ T2: 2♠ vs Nera → Vinto +1 [Rimossa in auto: 0♠]
 T1: 1♡ vs Bianca → Pari [Rimossa in auto: 1♡]
 T0: 0♠ vs Nera → Perso [Era una tra: 2,4,6,8]
 ############################################################
+############################################################
+==== Partita: 2026-06-10T22:17:48.790877 ====
+Iniziata da: Computer
+Vittorie: 5, Sconfitte: 4, Pari: 0, Monete: 6
+Turni:
+T0: 0♠ vs white -> lose
+T1: 1♡ vs black -> win
+T2: 4♠ vs white -> lose
+T3: 5♡ vs black -> win
+T4: 6♠ vs white -> win
+T5: 7♡ vs white -> win
+T6: 8♠ vs black -> win
+T7: 2♠ vs black -> lose
+T8: 3♡ vs black -> lose
+Log GUI:
+T8: 3♡ vs Nera → Perso [Era una tra: 4,6,8]
+T7: 2♠ vs Nera → Perso [Era una tra: 4,6,8]
+T6: 8♠ vs Nera → Vinto +1 [Era una tra: 2,4,6]
+T5: 7♡ vs Bianca → Vinto +1 [Era una tra: 1,3,5]
+T4: 6♠ vs Bianca → Vinto +1 [Era una tra: 1,3,5]
+T3: 5♡ vs Nera → Vinto +1 [Era una tra: 2,4]
+T2: 4♠ vs Bianca → Perso [Era una tra: 5,7]
+T1: 1♡ vs Nera → Vinto +1 [Rimossa in auto: 0♠]
+T0: 0♠ vs Bianca → Perso [Era una tra: 1,3,5,7]
+############################################################
