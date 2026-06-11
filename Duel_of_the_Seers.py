@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import font as tkfont
-import os, sys
+import os, sys, json
+from datetime import datetime
 
 try:
     from PIL import Image, ImageTk
@@ -752,10 +753,71 @@ class ContesaApp:
             self.gomsg.config(
                 text=f"Partita Conclusa! {result_str} — "
                      f"{self.wins}V {self.losses}S {self.ties}P → {self.coins} monete")
+            self._save_game_logs()
 
         self._update_stats()
         self._render_cpu_deck()
         self._render_main()
+
+    def _save_game_logs(self):
+        """Salva il log della partita nei file .txt e .json appropriati."""
+        timestamp = datetime.now().isoformat()
+
+        # Scegli i file in base a chi ha iniziato
+        if self.who_first == "me":
+            txt_file = resource_path("logs_IO.txt")
+            json_file = resource_path("logs_IO.json")
+            started_by_str = "Giocatore"
+        else:
+            txt_file = resource_path("logs_PC.txt")
+            json_file = resource_path("logs_PC.json")
+            started_by_str = "Computer"
+
+        # ── Costruisci il log GUI invertito (come nel tuo formato di riferimento) ──
+        gui_log_lines = self.log_text.get("1.0", "end").strip().splitlines()
+        gui_log_lines_reversed = list(reversed(gui_log_lines))
+
+        # ── Costruisci il blocco TXT ──
+        lines = []
+        lines.append("############################################################")
+        lines.append(f"==== Partita: {timestamp} ====")
+        lines.append(f"Iniziata da: {started_by_str}")
+        lines.append(f"Vittorie: {self.wins}, Sconfitte: {self.losses}, Pari: {self.ties}, Monete: {self.coins}")
+        lines.append("Turni:")
+        for i, t in enumerate(self.turn_history):
+            c = t["my_card"]
+            color = t["cpu_color"]
+            fb = t["feedback"]
+            lines.append(f"T{i}: {card_label(c)} vs {color} -> {fb}")
+        lines.append("Log GUI:")
+        lines.extend(gui_log_lines_reversed)
+        lines.append("############################################################")
+        txt_block = "\n".join(lines) + "\n"
+
+        # ── Scrivi TXT (append) ──
+        try:
+            with open(txt_file, "a", encoding="utf-8") as f:
+                f.write(txt_block)
+        except Exception as e:
+            print(f"[WARN] Impossibile scrivere {txt_file}: {e}")
+
+        # ── Costruisci il record JSON ──
+        record = {
+            "timestamp": timestamp,
+            "started_by": "me" if self.who_first == "me" else "cpu",
+            "wins": self.wins,
+            "losses": self.losses,
+            "ties": self.ties,
+            "coins": self.coins,
+            "turn_history": [dict(t) for t in self.turn_history],
+        }
+
+        # ── Scrivi JSON (una riga per record, append) ──
+        try:
+            with open(json_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception as e:
+            print(f"[WARN] Impossibile scrivere {json_file}: {e}")
 
     def _log(self, text):
         self.log_text.config(state="normal")
