@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import font as tkfont
-import os, sys, json, datetime
+import os, sys
+from datetime import datetime
+from functools import lru_cache
+import json
 
 
 try:
@@ -629,6 +632,175 @@ class ContesaApp:
         self.banner_frame.config(bg=inactive_bg)
         self.banner_label.config(bg=inactive_bg)
 
+    def _effective_cpu(self):
+        if self.cpu_color is None:
+            return list(self.cpu_possible)
+        if self.cpu_color == "black":
+            return [c for c in self.cpu_possible if is_black(c)]
+        return [c for c in self.cpu_possible if not is_black(c)]
+
+    def _surviving(self):
+        if self.my_card is None or self.feedback is None: return []
+        eff = self._effective_cpu()
+        if self.feedback == "win":
+            return [c for c in eff if c < self.my_card]
+        if self.feedback == "lose":
+            return [c for c in eff if c > self.my_card]
+        if self.feedback == "par":
+            return [c for c in eff if c == self.my_card]
+        return []
+
+    def _get_warnings(self):
+        """Genera avvisi se il computer è costretto a giocare mosse prevedibili."""
+        warnings = []
+        if not self.cpu_possible:
+            return warnings
+        
+        # CPU ha solo 1 carta rimanente in totale
+        if len(self.cpu_possible) == 1:
+            warnings.append(f"Il computer ha in mano solo il {card_label(self.cpu_possible[0])}!")
+            return warnings
+
+        # Controlla i colori rimanenti
+        blacks = [c for c in self.cpu_possible if is_black(c)]
+        whites = [c for c in self.cpu_possible if not is_black(c)]
+        
+        if not whites and blacks:
+            warnings.append("Il computer ha esaurito le carte Bianche! Giocherà solo carte Nere ♠.")
+        elif not blacks and whites:
+            warnings.append("Il computer ha esaurito le carte Nere! Giocherà solo carte Bianche ♡.")
+            
+        return warnings
+
+    @staticmethod
+    def _coins(w, l):
+        """Monete Veggenza: punti + margine se vinci la manche (regola ufficiale)."""
+        return w + (w - l if w > l else 0)
+
+    def _exact_coin_scores(self, hand, cpu_set, color):
+        """Monete attese esatte per ogni mia carta, modellando il PC come uniforme
+        sul set ancora possibile (i log mostrano che il PC gioca indipendentemente
+        dalla mia carta). Il turno corrente è condizionato sul colore se già visibile.
+        Ritorna [(carta, monete_attese, pct_vittoria), ...] ordinato dal migliore."""
+        H0 = frozenset(hand)
+        R0 = frozenset(cpu_set)
+
+        @lru_cache(maxsize=None)
+        def ec(H, R, w, l):
+            if not H:
+                return self._coins(w, l)
+            best = -1.0
+            for c in H:
+                tot = len(R)
+                if tot == 0:
+                    v = ec(H - frozenset((c,)), R, w, l)
+                else:
+                    s = 0.0
+                    for d in R:
+                        s += ec(H - frozenset((c,)), R - frozenset((d,)),
+                                w + (1 if c > d else 0), l + (1 if c < d else 0))
+                    v = s / tot
+                if v > best:
+                    best = v
+            return best
+
+        if color is not None:
+            pool = [d for d in R0 if (is_black(d) if color == "black" else not is_black(d))]
+            if not pool:
+                pool = list(R0)
+        else:
+            pool = list(R0)
+
+        scores = []
+        for c in sorted(hand):
+            s = 0.0
+            for d in pool:
+                s += ec(H0 - frozenset((c,)), R0 - frozenset((d,)),
+                        1 if c > d else 0, 1 if c < d else 0)
+            ecoins = s / len(pool)
+            pct = round(sum(1 for d in pool if c > d) / len(pool) * 100)
+            scores.append((c, ecoins, pct))
+        scores.sort(key=lambda x: (-x[1], x[0]))
+        return scores
+
+    def _get_suggestion(self):
+        """Migliori carte da giocare: massimizza le MONETE attese sfruttando il set
+        dedotto del PC e, quando visibile, il suo colore."""
+        if not self.my_hand or self.my_card is not None:
+            return []
+
+        eff = self._effective_cpu()
+        if not eff:
+            return []
+
+        # Late-game / set ristretto: calcolo esatto delle monete attese.
+        if len(self.my_hand) <= 6 and len(self.cpu_possible) <= 7:
+            scores = self._exact_coin_scores(self.my_hand, self.cpu_possible, self.cpu_color)
+            return [{"card": c, "pct": pct} for (c, _ec, pct) in scores[:3]]
+
+        # Early-game / set ancora ampio: euristica di conservazione.
+        total = len(eff)
+        def pct(c):
+            return round(sum(1 for d in eff if c > d) / total * 100)
+
+        if self.cpu_color is not None:
+            # Colore visibile: vinci in modo efficiente con la minima carta che
+            # supera la più bassa del PC, conservando le carte alte.
+            lo = min(eff)
+            winners = [c for c in sorted(self.my_hand) if c > lo]
+            ranked = (winners + [c for c in sorted(self.my_hand) if c <= lo]) if winners \
+                     else sorted(self.my_hand)
+        else:
+            # Nessuna info sul colore: 0 e 1 non vincono mai (dai log) → sacrifica
+            # dal basso e conserva le carte alte.
+            ranked = sorted(self.my_hand)
+
+        # Ordina le carte per probabilità di vittoria (`pct`) decrescente
+        ranked_by_pct = sorted(ranked, key=lambda c: (-pct(c), c))
+        return [{"card": c, "pct": pct(c)} for c in ranked_by_pct[:3]]
+
+    def _deduce_cpu_remaining(self):
+        manual = set(self.cpu_possible)
+        if not self.turn_history:
+            return manual
+
+        allowed_options = []
+        for item in self.turn_history:
+            color = item["cpu_color"]
+            my_card = item["my_card"]
+            feedback = item["feedback"]
+
+            candidates = [c for c in manual if (is_black(c) if color == "black" else not is_black(c))]
+            if feedback == "win":
+                candidates = [c for c in candidates if c < my_card]
+            elif feedback == "lose":
+                candidates = [c for c in candidates if c > my_card]
+            elif feedback == "par":
+                candidates = [c for c in candidates if c == my_card]
+            else:
+                candidates = []
+
+            if not candidates:
+                return manual
+            allowed_options.append(candidates)
+
+        allowed_options.sort(key=len)
+        possible_remaining = set()
+
+        def dfs(index, used):
+            if index == len(allowed_options):
+                possible_remaining.update(manual - used)
+                return
+            for c in allowed_options[index]:
+                if c in used:
+                    continue
+                used.add(c)
+                dfs(index + 1, used)
+                used.remove(c)
+
+        dfs(0, set())
+        return possible_remaining if possible_remaining else manual
+
     # ── RENDER ────────────────────────────────────────────────────────────────
 
     def _clear_main(self):
@@ -706,6 +878,17 @@ class ContesaApp:
         for w in warnings:
             tk.Label(self.main_frame, text=f"⚠️ ATTENZIONE: {w}", bg=self.WARN_BG, fg=self.WARN_FG,
                      font=self.bold, padx=10, pady=4, anchor="w").pack(fill="x", pady=(0, 6))
+
+        # --- INSIGHT DAI LOG REALI ---
+        if self.who_first == "cpu":
+            tip = ("📊 Inizia il PC: imposta prima il suo COLORE qui sotto, poi scegli la carta — "
+                   "il suggerimento sfrutta quell'informazione (vale ~1 moneta in più a partita).")
+        else:
+            tip = ("📊 Il PC gioca a caso e non contrasta la tua carta: 0–1 non vincono mai "
+                   "(sacrificali), le carte ≥4 vincono quasi sempre.")
+        tk.Label(self.main_frame, text=tip, bg=self.INFO_BG, fg=self.INFO_FG,
+                 font=self.small, padx=10, pady=4, anchor="w", justify="left",
+                 wraplength=560).pack(fill="x", pady=(0, 6))
 
         # 1. Scelta colore computer
         tk.Label(self.main_frame, text="1. CHE COLORE HA GIOCATO IL COMPUTER?", bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(0,2))
@@ -861,11 +1044,142 @@ class ContesaApp:
         self._refresh()
 
     def _confirm_turn(self):
-        self.game.confirm_turn()
-        if self.game.done and not self._logged:
-            self._save_game_log()
-            self._logged = True
-        self._refresh()
+        surv = self._surviving()
+        if not surv:
+            return
+
+        deduced_card_str = ""
+        if len(surv) == 1:
+            exact_card = surv[0]
+            if exact_card in self.cpu_possible:
+                self.cpu_possible.remove(exact_card)
+                deduced_card_str = f" [Rimossa in auto: {card_label(exact_card)}]"
+        else:
+            deduced_card_str = f" [Era una tra: {','.join(str(c) for c in surv)}]"
+
+        self.history.append(self._snapshot_state())
+        self.undo_btn.config(state="normal")
+        if self.my_card in self.my_hand:
+            self.my_hand.remove(self.my_card)
+
+        if self.feedback == "win":
+            self.wins  += 1
+            res = "Vinto +1"
+        elif self.feedback == "par":
+            self.ties += 1
+            res = "Pari"
+        else:
+            self.losses += 1
+            res = "Perso"
+
+        col_str = "Nera" if self.cpu_color == "black" else "Bianca"
+        self._log(f"T{self.turn}: {card_label(self.my_card)} vs {col_str} → {res}{deduced_card_str}")
+
+        self.turn_history.append({
+            "cpu_color": self.cpu_color,
+            "my_card": self.my_card,
+            "feedback": self.feedback,
+        })
+
+        self.cpu_possible = sorted(self._deduce_cpu_remaining())
+
+        self.turn     += 1
+        self.my_card   = None
+        self.feedback  = None
+        self.cpu_color = None
+        self.phase     = "action"
+
+        if not self.my_hand:
+            self.done = True
+            cpu_score = self.losses
+            my_score = self.wins
+            score_diff = my_score - cpu_score
+            if score_diff > 0:
+                self.coins = self.wins + score_diff
+            else:
+                self.coins = self.wins
+            self.gomsg.config(
+                text=f"Partita Conclusa! {self.wins} vitt, {self.losses} scf, {self.ties} par → {self.coins} monete.")
+            # Salva i log della partita appena conclusa
+            try:
+                self._save_game_log()
+            except Exception:
+                pass
+
+        self._update_stats()
+        self._render_cpu_deck()
+        self._render_main()
+
+    def _log(self, text):
+        self.log_text.config(state="normal")
+        self.log_text.insert("1.0", text + "\n")
+        self.log_text.config(state="disabled")
+
+    def _clear_log(self):
+        self.log_text.config(state="normal")
+        self.log_text.delete("1.0", "end")
+        self.log_text.config(state="disabled")
+
+    def _save_game_log(self):
+        """Salva l'intero log della partita su logs.txt nella cartella principale del progetto."""
+        try:
+            # Use script directory as project root (logs are next to the script)
+            project_root = SCRIPT_DIR
+
+            # Choose file based on who started
+            if self.who_first == "me":
+                target_file = "logs_IO.txt"
+            else:
+                target_file = "logs_PC.txt"
+
+            logs_path = os.path.join(project_root, target_file)
+
+            sep = "#" * 60
+            header = f"==== Partita: {datetime.now().isoformat()} ===="
+            started_by = "Iniziata da: Giocatore" if self.who_first == "me" else "Iniziata da: Computer"
+            final = (
+                f"Vittorie: {self.wins}, Sconfitte: {self.losses}, "
+                f"Pari: {self.ties}, Monete: {self.coins}"
+            )
+
+            lines = [sep, header, started_by, final, "Turni:"]
+            for i, t in enumerate(self.turn_history):
+                card = card_label(t.get("my_card")) if t.get("my_card") is not None else "-"
+                color = t.get("cpu_color") or "-"
+                fb = t.get("feedback") or "-"
+                lines.append(f"T{i}: {card} vs {color} -> {fb}")
+
+            lines.append("Log GUI:")
+            gui_log = self.log_text.get("1.0", "end").strip()
+            if gui_log:
+                lines.extend(gui_log.splitlines())
+
+            lines.append(sep)
+
+            with open(logs_path, "a", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+
+            # Also append a JSON record (ndjson) for easier analysis
+            json_obj = {
+                "timestamp": datetime.now().isoformat(),
+                "started_by": "me" if self.who_first == "me" else "cpu",
+                "wins": self.wins,
+                "losses": self.losses,
+                "ties": self.ties,
+                "coins": self.coins,
+                "turn_history": self.turn_history,
+            }
+            json_path = os.path.splitext(logs_path)[0] + ".json"
+            try:
+                with open(json_path, "a", encoding="utf-8") as jf:
+                    jf.write(json.dumps(json_obj, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+
+            # Mostra conferma all'utente
+            self._log(f"Log salvato su {logs_path}")
+        except Exception as e:
+            self._log(f"Errore salvataggio log: {e}")
 
 
 if __name__ == "__main__":
