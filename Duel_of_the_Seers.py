@@ -1,10 +1,6 @@
 import tkinter as tk
 from tkinter import font as tkfont
 import os, sys
-from datetime import datetime
-from functools import lru_cache
-import json
-
 
 try:
     from PIL import Image, ImageTk
@@ -15,51 +11,56 @@ except ImportError:
 ALL_CARDS = list(range(9))
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
 def resource_path(relative_path):
     """ Ottiene il percorso assoluto della risorsa, compatibile con dev e PyInstaller """
     try:
-        # PyInstaller crea una cartella temporanea e memorizza il percorso in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
         base_path = SCRIPT_DIR
-
     return os.path.join(base_path, relative_path)
 
 
 def is_black(c):
     return c % 2 == 0
 
+
 def suit(c):
     return "♠" if is_black(c) else "♡"
+
 
 def card_label(c):
     return f"{c}{suit(c)}"
 
 
 class ContesaApp:
-    BG             = "#1b1b1f"
-    FG             = "#f4f4f8"
-    MUTED          = "#9aa0ad"
-    CARD_BG        = "#252f3c"
-    CARD_FG        = "#f4f4f8"
-    SEL_BG         = "#22344f"
-    SEL_FG         = "#a8d4ff"
-    SEL_BD         = "#64b5ff"
-    BTN_BG         = "#2b3340"
-    BTN_FG         = "#f4f4f8"
-    BTN_ACTIVE_BG  = "#3a4a61"
-    BTN_ACTIVE_FG  = "#ffffff"
-    BTN_BORDER     = "#4d5c71"
-    GREEN          = "#4caf7d"
-    RED            = "#ef5350"
-    INFO_BG        = "#22303d"
-    INFO_FG        = "#c8ebff"
-    WARN_BG        = "#55372a"
-    WARN_FG        = "#ffd87d"
-    SECTION_BG     = "#222830"
-    PANEL_BG       = "#232b36"
-    LEGEND_BG      = "#1f2430"
-    LEGEND_FG      = "#8b96ad"
+
+    BG = "#1b1b1f"
+    FG = "#f4f4f8"
+    MUTED = "#9aa0ad"
+    CARD_BG = "#252f3c"
+    CARD_FG = "#f4f4f8"
+    SEL_BG = "#22344f"
+    SEL_FG = "#a8d4ff"
+    SEL_BD = "#64b5ff"
+    BTN_BG = "#2b3340"
+    BTN_FG = "#f4f4f8"
+    BTN_ACTIVE_BG = "#3a4a61"
+    BTN_ACTIVE_FG = "#ffffff"
+    BTN_BORDER = "#4d5c71"
+    GREEN = "#4caf7d"
+    ORANGE = "#ff9800"
+    RED = "#ef5350"
+    INFO_BG = "#22303d"
+    INFO_FG = "#c8ebff"
+    WARN_BG = "#55372a"
+    WARN_FG = "#ffd87d"
+    SECTION_BG = "#222830"
+    PANEL_BG = "#232b36"
+    LEGEND_BG = "#1f2430"
+    LEGEND_FG = "#8b96ad"
+    PLAYED_BG = "#1a1a2a"
+    PLAYED_FG = "#6a6a8a"
     BANNER_IMAGE_PATH = resource_path("banner.png")
 
     def __init__(self, root):
@@ -67,14 +68,12 @@ class ContesaApp:
         self.root.title("Contesa dei Veggenti — Tracker & AI")
         self.root.configure(bg=self.BG)
         self.root.resizable(False, False)
-
-        self.bold       = tkfont.Font(family="Helvetica", size=11, weight="bold")
-        self.normal     = tkfont.Font(family="Helvetica", size=11)
-        self.small      = tkfont.Font(family="Helvetica", size=9)
-        self.big        = tkfont.Font(family="Helvetica", size=18, weight="bold")
-        self.card_font  = tkfont.Font(family="Helvetica", size=14, weight="bold")
-        self.suit_font  = tkfont.Font(family="Helvetica", size=9)
-
+        self.bold = tkfont.Font(family="Helvetica", size=11, weight="bold")
+        self.normal = tkfont.Font(family="Helvetica", size=11)
+        self.small = tkfont.Font(family="Helvetica", size=9)
+        self.big = tkfont.Font(family="Helvetica", size=18, weight="bold")
+        self.card_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
+        self.suit_font = tkfont.Font(family="Helvetica", size=9)
         self._build_ui()
         self._init_game()
 
@@ -90,10 +89,10 @@ class ContesaApp:
         stats = tk.Frame(self.root, bg=self.SECTION_BG, padx=10, pady=10)
         stats.pack(fill="x", padx=10, pady=(0, 8))
         self.stats_frame = stats
-        self.lbl_turn   = self._stat_box(stats, "Turno",    "-")
-        self.lbl_wins   = self._stat_box(stats, "Vittorie", "0", self.GREEN)
-        self.lbl_losses = self._stat_box(stats, "Sconfitte","0", self.RED)
-        self.lbl_coins  = self._stat_box(stats, "Monete",   "0")
+        self.lbl_turn = self._stat_box(stats, "Turno", "0/9")
+        self.lbl_wins = self._stat_box(stats, "Vittorie", "0", self.GREEN)
+        self.lbl_losses = self._stat_box(stats, "Sconfitte", "0", self.RED)
+        self.lbl_coins = self._stat_box(stats, "Monete", "0")
 
         self.cpu_section = tk.LabelFrame(self.root, text="Mazzo Computer", bg=self.SECTION_BG,
                                          fg=self.FG, font=self.small, labelanchor="nw",
@@ -101,11 +100,11 @@ class ContesaApp:
         self.cpu_section.pack(fill="x", padx=10, pady=(0, 8))
 
         header = tk.Frame(self.cpu_section, bg=self.SECTION_BG)
-        header.pack(fill="x", pady=(0, 8))
+        header.pack(fill="x", pady=(0, 4))
         tk.Label(header, text="Clicca per scartare/recuperare carte.",
                  bg=self.SECTION_BG, fg=self.MUTED, font=self.small).pack(side="left")
         self._btn(header, "Ripristina mazzo", self._reset_cpu_deck,
-                  bg=self.BTN_BG, fg=self.BTN_FG).pack(side="right", padx=(8,0))
+                  bg=self.BTN_BG, fg=self.BTN_FG).pack(side="right", padx=(8, 0))
         self.cpu_count_lbl = tk.Label(header, text="Carte possibili: 9", bg=self.SECTION_BG,
                                       fg=self.FG, font=self.small)
         self.cpu_count_lbl.pack(side="right")
@@ -114,10 +113,19 @@ class ContesaApp:
                                        padx=10, pady=10)
         self.cpu_deck_frame.pack(fill="x")
 
+        # Sezione carte già giocate dal computer (dedotte con certezza)
+        self.cpu_played_header = tk.Label(self.cpu_section,
+                                          text="Carte giocate dal computer (dedotte): nessuna",
+                                          bg=self.SECTION_BG, fg=self.MUTED, font=self.small, anchor="w")
+        self.cpu_played_header.pack(fill="x", pady=(6, 2))
+        self.cpu_played_frame = tk.Frame(self.cpu_section, bg=self.SECTION_BG)
+        self.cpu_played_frame.pack(fill="x")
+
         self.activity_section = tk.LabelFrame(self.root, text="Turno e scelta", bg=self.SECTION_BG,
-                                             fg=self.FG, font=self.small, labelanchor="nw",
-                                             bd=1, relief="groove", padx=8, pady=8)
+                                              fg=self.FG, font=self.small, labelanchor="nw",
+                                              bd=1, relief="groove", padx=8, pady=8)
         self.activity_section.pack(fill="x", padx=10, pady=(0, 8))
+
         self.main_frame = tk.Frame(self.activity_section, bg=self.SECTION_BG)
         self.main_frame.pack(fill="x")
 
@@ -128,7 +136,6 @@ class ContesaApp:
                                          fg=self.FG, font=self.small, labelanchor="nw",
                                          bd=1, relief="groove", padx=8, pady=8)
         self.log_section.pack(fill="both", expand=True, padx=10, pady=(0, 8))
-
         self.log_text = tk.Text(self.log_section, height=5, bg=self.CARD_BG, fg=self.FG,
                                 font=self.small, relief="flat", state="disabled",
                                 wrap="word", borderwidth=0, highlightthickness=0)
@@ -141,14 +148,14 @@ class ContesaApp:
         bot.pack(fill="x", padx=10, pady=(0, 8))
         self._btn(bot, "Nuova partita", self._init_game, bg=self.BTN_BG, fg=self.BTN_FG).pack(side="left")
         self.undo_btn = self._btn(bot, "Undo", self._undo, bg="#3b3f48", fg=self.FG, state="disabled")
-        self.undo_btn.pack(side="left", padx=(8,0))
+        self.undo_btn.pack(side="left", padx=(8, 0))
         self.gomsg = tk.Label(bot, text="", bg=self.BG, fg=self.GREEN, font=self.bold)
         self.gomsg.pack(side="left", padx=12)
 
         self.banner_frame = tk.Frame(self.root, bg=self.BG)
         self.banner_frame.pack(fill="both", padx=10, pady=(0, 10))
         self.banner_label = tk.Label(self.banner_frame, bg=self.BG, fg=self.MUTED,
-                                     font=self.small, text=f"Caricamento banner...")
+                                     font=self.small, text="Caricamento banner...")
         self.banner_label.pack(fill="both", expand=True)
         self.banner_photo = None
         self._load_banner_image()
@@ -174,7 +181,6 @@ class ContesaApp:
             self.banner_label.config(text="Immagine banner non trovata.")
             self.banner_photo = None
             return
-
         if HAS_PIL:
             try:
                 image = Image.open(self.BANNER_IMAGE_PATH)
@@ -192,9 +198,8 @@ class ContesaApp:
                 self.banner_photo = ImageTk.PhotoImage(image)
                 self.banner_label.config(image=self.banner_photo, text="")
                 return
-            except Exception as e:
+            except Exception:
                 pass
-
         self.banner_label.config(text="Installa Pillow per mostrare il banner: pip install Pillow")
         self.banner_photo = None
 
@@ -206,22 +211,22 @@ class ContesaApp:
     # ── GAME LOGIC & AI ───────────────────────────────────────────────────────
 
     def _init_game(self):
-        self.my_hand       = list(ALL_CARDS)
-        self.cpu_possible  = list(ALL_CARDS)
-        self.turn          = 0
-        self.wins          = 0
-        self.losses        = 0
-        self.ties          = 0
-        self.coins         = 0
-        self.done          = False
-        self.who_first     = None
-        self.my_card       = None
-        self.cpu_color     = None
-        self.feedback      = None
-        self.phase         = "setup"
-        self.history       = []
-        self.turn_history  = []
-
+        self.my_hand = list(ALL_CARDS)
+        self.cpu_possible = list(ALL_CARDS)
+        self.cpu_confirmed_played = []   # carte del computer dedotte con certezza
+        self.turn = 0
+        self.wins = 0
+        self.losses = 0
+        self.ties = 0
+        self.coins = 0
+        self.done = False
+        self.who_first = None
+        self.my_card = None
+        self.cpu_color = None
+        self.feedback = None
+        self.phase = "setup"
+        self.history = []
+        self.turn_history = []
         self.gomsg.config(text="")
         self._clear_log()
         self._update_stats()
@@ -230,7 +235,7 @@ class ContesaApp:
         self.undo_btn.config(state="disabled")
 
     def _update_stats(self):
-        self.lbl_turn.config(text=f"{self.turn}/9" if self.who_first else "-")
+        self.lbl_turn.config(text=f"{self.turn}/9")
         self.lbl_wins.config(text=str(self.wins))
         self.lbl_losses.config(text=str(self.losses))
         self.lbl_coins.config(text=str(self.coins))
@@ -245,12 +250,12 @@ class ContesaApp:
         inactive_bd = 1
 
         self.cpu_section.config(bg=active_bg if cpu_active else inactive_bg,
-                                bd=active_bd if cpu_active else inactive_bd)
+                                 bd=active_bd if cpu_active else inactive_bd)
         self.activity_section.config(bg=active_bg if action_active else inactive_bg,
-                                     bd=active_bd if action_active else inactive_bd)
+                                      bd=active_bd if action_active else inactive_bd)
         self.main_frame.config(bg=active_bg if action_active else inactive_bg)
-
         self.cpu_count_lbl.config(fg=self.FG if cpu_active else self.MUTED)
+
         for child in self.cpu_section.winfo_children():
             try:
                 child.config(bg=active_bg if cpu_active else inactive_bg)
@@ -278,7 +283,8 @@ class ContesaApp:
         return [c for c in self.cpu_possible if not is_black(c)]
 
     def _surviving(self):
-        if self.my_card is None or self.feedback is None: return []
+        if self.my_card is None or self.feedback is None:
+            return []
         eff = self._effective_cpu()
         if self.feedback == "win":
             return [c for c in eff if c < self.my_card]
@@ -293,109 +299,59 @@ class ContesaApp:
         warnings = []
         if not self.cpu_possible:
             return warnings
-        
-        # CPU ha solo 1 carta rimanente in totale
+
         if len(self.cpu_possible) == 1:
             warnings.append(f"Il computer ha in mano solo il {card_label(self.cpu_possible[0])}!")
             return warnings
 
-        # Controlla i colori rimanenti
         blacks = [c for c in self.cpu_possible if is_black(c)]
         whites = [c for c in self.cpu_possible if not is_black(c)]
-        
+
         if not whites and blacks:
             warnings.append("Il computer ha esaurito le carte Bianche! Giocherà solo carte Nere ♠.")
         elif not blacks and whites:
             warnings.append("Il computer ha esaurito le carte Nere! Giocherà solo carte Bianche ♡.")
-            
+
         return warnings
 
-    @staticmethod
-    def _coins(w, l):
-        """Monete Veggenza: punti + margine se vinci la manche (regola ufficiale)."""
-        return w + (w - l if w > l else 0)
-
-    def _exact_coin_scores(self, hand, cpu_set, color):
-        """Monete attese esatte per ogni mia carta, modellando il PC come uniforme
-        sul set ancora possibile (i log mostrano che il PC gioca indipendentemente
-        dalla mia carta). Il turno corrente è condizionato sul colore se già visibile.
-        Ritorna [(carta, monete_attese, pct_vittoria), ...] ordinato dal migliore."""
-        H0 = frozenset(hand)
-        R0 = frozenset(cpu_set)
-
-        @lru_cache(maxsize=None)
-        def ec(H, R, w, l):
-            if not H:
-                return self._coins(w, l)
-            best = -1.0
-            for c in H:
-                tot = len(R)
-                if tot == 0:
-                    v = ec(H - frozenset((c,)), R, w, l)
-                else:
-                    s = 0.0
-                    for d in R:
-                        s += ec(H - frozenset((c,)), R - frozenset((d,)),
-                                w + (1 if c > d else 0), l + (1 if c < d else 0))
-                    v = s / tot
-                if v > best:
-                    best = v
-            return best
-
-        if color is not None:
-            pool = [d for d in R0 if (is_black(d) if color == "black" else not is_black(d))]
-            if not pool:
-                pool = list(R0)
-        else:
-            pool = list(R0)
-
-        scores = []
-        for c in sorted(hand):
-            s = 0.0
-            for d in pool:
-                s += ec(H0 - frozenset((c,)), R0 - frozenset((d,)),
-                        1 if c > d else 0, 1 if c < d else 0)
-            ecoins = s / len(pool)
-            pct = round(sum(1 for d in pool if c > d) / len(pool) * 100)
-            scores.append((c, ecoins, pct))
-        scores.sort(key=lambda x: (-x[1], x[0]))
-        return scores
-
     def _get_suggestion(self):
-        """Migliori carte da giocare: massimizza le MONETE attese sfruttando il set
-        dedotto del PC e, quando visibile, il suo colore."""
-        if not self.my_hand or self.my_card is not None:
+        """Restituisce le migliori carte da giocare ordinate per probabilità e conservazione."""
+        if not self.my_hand:
             return []
 
+        # Prime due mosse: suggerimenti fissi
+        if self.turn == 0:
+            return [{"card": 0, "pct": 0, "fixed": "Apertura consigliata"}]
+        if self.turn == 1:
+            if 1 in self.my_hand:
+                return [{"card": 1, "pct": 0, "fixed": "Continuazione consigliata"}]
+            else:
+                return []
+
+        # Calcola le percentuali usando le carte effettive del cpu (filtrate per colore se noto)
         eff = self._effective_cpu()
-        if not eff:
+        total = len(eff)
+
+        if total == 0:
             return []
 
-        # Late-game / set ristretto: calcolo esatto delle monete attese.
-        if len(self.my_hand) <= 6 and len(self.cpu_possible) <= 7:
-            scores = self._exact_coin_scores(self.my_hand, self.cpu_possible, self.cpu_color)
-            return [{"card": c, "pct": pct} for (c, _ec, pct) in scores[:3]]
+        card_pcts = {c: round(sum(1 for x in eff if c > x) / total * 100)
+                     for c in self.my_hand}
 
-        # Early-game / set ancora ampio: euristica di conservazione.
-        total = len(eff)
-        def pct(c):
-            return round(sum(1 for d in eff if c > d) / total * 100)
+        if not card_pcts:
+            return []
 
-        if self.cpu_color is not None:
-            # Colore visibile: vinci in modo efficiente con la minima carta che
-            # supera la più bassa del PC, conservando le carte alte.
-            lo = min(eff)
-            winners = [c for c in sorted(self.my_hand) if c > lo]
-            ranked = (winners + [c for c in sorted(self.my_hand) if c <= lo]) if winners \
-                     else sorted(self.my_hand)
-        else:
-            # Nessuna info sul colore: 0 e 1 non vincono mai (dai log) → sacrifica
-            # dal basso e conserva le carte alte.
-            ranked = sorted(self.my_hand)
+        # Conservazione risorse: preferiamo carte più basse se la probabilità è simile.
+        card_scores = {c: card_pcts[c] - c * 2.5 for c in self.my_hand}
+        sorted_cards = sorted(self.my_hand, key=lambda c: (-card_scores[c], c))
 
-        # Ordina le carte per probabilità di vittoria (`pct`) decrescente
-        ranked_by_pct = sorted(ranked, key=lambda c: (-pct(c), c))
-        return [{"card": c, "pct": pct(c)} for c in ranked_by_pct[:3]]
+        # Se la probabilità massima è bassa, usiamo un sacrificio conservativo.
+        max_pct = max(card_pcts.values())
+        if max_pct < 35:
+            lowest = sorted(self.my_hand)
+            return [{"card": lowest[0], "pct": card_pcts[lowest[0]]}]
+
+        return [{"card": c, "pct": card_pcts[c]} for c in sorted_cards[:3]]
 
     def _deduce_cpu_remaining(self):
         manual = set(self.cpu_possible)
@@ -409,6 +365,7 @@ class ContesaApp:
             feedback = item["feedback"]
 
             candidates = [c for c in manual if (is_black(c) if color == "black" else not is_black(c))]
+
             if feedback == "win":
                 candidates = [c for c in candidates if c < my_card]
             elif feedback == "lose":
@@ -420,9 +377,11 @@ class ContesaApp:
 
             if not candidates:
                 return manual
+
             allowed_options.append(candidates)
 
         allowed_options.sort(key=len)
+
         possible_remaining = set()
 
         def dfs(index, used):
@@ -447,25 +406,33 @@ class ContesaApp:
 
     def _section(self, text):
         tk.Label(self.main_frame, text=text.upper(), bg=self.BG, fg=self.MUTED,
-                 font=self.small, anchor="w").pack(fill="x", pady=(8,3))
+                 font=self.small, anchor="w").pack(fill="x", pady=(8, 3))
 
     def _render_main(self):
         self._update_section_styles()
         self._clear_main()
         if self.done:
             return
-        {"setup":    self._render_setup,
-         "action":   self._render_action,
+        {"setup": self._render_setup,
+         "action": self._render_action,
          "feedback": self._render_feedback}[self.phase]()
 
     def _render_cpu_deck(self):
         possible_count = len(self.cpu_possible)
-        self.cpu_count_lbl.config(text=f"Carte possibili: {possible_count}",
-                                  fg=self.RED if possible_count == 1 else self.FG)
+
+        # Colore contatore: verde > 3, arancione <= 3, rosso = 1
+        if possible_count == 1:
+            count_color = self.RED
+        elif possible_count <= 3:
+            count_color = self.ORANGE
+        else:
+            count_color = self.FG
+
+        self.cpu_count_lbl.config(text=f"Carte possibili: {possible_count}", fg=count_color)
 
         for w in self.cpu_deck_frame.winfo_children():
             w.destroy()
-            
+
         for c in ALL_CARDS:
             is_active = c in self.cpu_possible
             bg = self.CARD_BG if is_active else self.SECTION_BG
@@ -477,7 +444,6 @@ class ContesaApp:
             inner = tk.Frame(outer, bg=bg, width=48, height=66, bd=1, relief="solid")
             inner.pack()
             inner.pack_propagate(False)
-            
             tk.Label(inner, text=str(c), bg=bg, fg=fg, font=self.bold).pack(expand=True)
             tk.Label(inner, text=suit(c), bg=bg, fg=fg, font=self.suit_font).pack()
 
@@ -488,10 +454,26 @@ class ContesaApp:
                     self.cpu_possible.append(card)
                     self.cpu_possible.sort()
                 self._render_cpu_deck()
-                self._render_main() 
+                self._render_main()
 
             for w in [inner] + inner.winfo_children():
                 w.bind("<Button-1>", on_click)
+
+        # Aggiorna sezione carte già giocate dal computer
+        for w in self.cpu_played_frame.winfo_children():
+            w.destroy()
+
+        played = getattr(self, "cpu_confirmed_played", [])
+        if played:
+            self.cpu_played_header.config(
+                text=f"Carte giocate dal computer (dedotte): {', '.join(card_label(c) for c in played)}")
+            for c in played:
+                lbl = tk.Label(self.cpu_played_frame, text=card_label(c),
+                               bg=self.PLAYED_BG, fg=self.PLAYED_FG,
+                               font=self.small, padx=6, pady=2, relief="flat")
+                lbl.pack(side="left", padx=2)
+        else:
+            self.cpu_played_header.config(text="Carte giocate dal computer (dedotte): nessuna")
 
     # ── FASI ──────────────────────────────────────────────────────────────────
 
@@ -499,8 +481,8 @@ class ContesaApp:
         self._section("Chi inizia per primo? (Serve solo per il log)")
         row = tk.Frame(self.main_frame, bg=self.BG)
         row.pack(anchor="w", pady=4)
-        self._btn(row, "Inizio io",            lambda: self._set_first("me")).pack(side="left", padx=(0,8))
-        self._btn(row, "Inizia il computer",   lambda: self._set_first("cpu")).pack(side="left")
+        self._btn(row, "Inizio io", lambda: self._set_first("me")).pack(side="left", padx=(0, 8))
+        self._btn(row, "Inizia il computer", lambda: self._set_first("cpu")).pack(side="left")
 
     def _set_first(self, who):
         self.who_first = who
@@ -509,26 +491,15 @@ class ContesaApp:
         self._render_main()
 
     def _render_action(self):
-
         # --- ALLARMI AI ---
         warnings = self._get_warnings()
         for w in warnings:
             tk.Label(self.main_frame, text=f"⚠️ ATTENZIONE: {w}", bg=self.WARN_BG, fg=self.WARN_FG,
                      font=self.bold, padx=10, pady=4, anchor="w").pack(fill="x", pady=(0, 6))
 
-        # --- INSIGHT DAI LOG REALI ---
-        if self.who_first == "cpu":
-            tip = ("📊 Inizia il PC: imposta prima il suo COLORE qui sotto, poi scegli la carta — "
-                   "il suggerimento sfrutta quell'informazione (vale ~1 moneta in più a partita).")
-        else:
-            tip = ("📊 Il PC gioca a caso e non contrasta la tua carta: 0–1 non vincono mai "
-                   "(sacrificali), le carte ≥4 vincono quasi sempre.")
-        tk.Label(self.main_frame, text=tip, bg=self.INFO_BG, fg=self.INFO_FG,
-                 font=self.small, padx=10, pady=4, anchor="w", justify="left",
-                 wraplength=560).pack(fill="x", pady=(0, 6))
-
         # 1. Scelta colore computer
-        tk.Label(self.main_frame, text="1. CHE COLORE HA GIOCATO IL COMPUTER?", bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(0,2))
+        tk.Label(self.main_frame, text="1. CHE COLORE HA GIOCATO IL COMPUTER?",
+                 bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(0, 2))
         color_row = tk.Frame(self.main_frame, bg=self.BG)
         color_row.pack(anchor="w", pady=2)
 
@@ -541,10 +512,11 @@ class ContesaApp:
 
         for label, col in [("Nera ♠ (Pari)", "black"), ("Bianca ♡ (Dispari)", "white")]:
             bg = "#1a3a2a" if self.cpu_color == col else self.BTN_BG
-            self._btn(color_row, label, lambda c=col: pick_color(c), bg=bg).pack(side="left", padx=(0,8))
+            self._btn(color_row, label, lambda c=col: pick_color(c), bg=bg).pack(side="left", padx=(0, 8))
 
         # 2. Scelta carta giocatore
-        tk.Label(self.main_frame, text="2. CHE CARTA HAI GIOCATO TU?", bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(10,2))
+        tk.Label(self.main_frame, text="2. CHE CARTA HAI GIOCATO TU?",
+                 bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(10, 2))
         cards_row = tk.Frame(self.main_frame, bg=self.BG)
         cards_row.pack(anchor="w", pady=2)
 
@@ -553,16 +525,15 @@ class ContesaApp:
 
         for c in sorted(self.my_hand):
             sel = self.my_card == c
-            bg  = self.SEL_BG if sel else self.CARD_BG
-            fg  = self.SEL_FG if sel else self.CARD_FG
-            bd  = self.SEL_BD if sel else ("#aaaaaa" if is_black(c) else "#555555")
+            bg = self.SEL_BG if sel else self.CARD_BG
+            fg = self.SEL_FG if sel else self.CARD_FG
+            bd = self.SEL_BD if sel else ("#aaaaaa" if is_black(c) else "#555555")
 
             outer = tk.Frame(cards_row, bg=bd, padx=1, pady=1)
             outer.pack(side="left", padx=3)
             inner = tk.Frame(outer, bg=bg, width=46, height=78)
             inner.pack()
             inner.pack_propagate(False)
-            
             tk.Label(inner, text=str(c), bg=bg, fg=fg, font=self.card_font).pack(expand=True)
             tk.Label(inner, text=suit(c), bg=bg, fg=fg, font=self.suit_font).pack()
 
@@ -575,7 +546,7 @@ class ContesaApp:
                 pct_str = "-%"
                 p_col = self.MUTED
 
-            tk.Label(inner, text=pct_str, bg=bg, fg=p_col, font=self.small).pack(pady=(0,3))
+            tk.Label(inner, text=pct_str, bg=bg, fg=p_col, font=self.small).pack(pady=(0, 3))
 
             def on_click(card=c):
                 self.my_card = card
@@ -589,49 +560,30 @@ class ContesaApp:
 
         # --- SUGGERIMENTO AI ---
         suggestions = self._get_suggestion()
-
         if suggestions:
             best = suggestions[0]
-            
             if "fixed" in best:
                 text = f"💡 {best['fixed']}: {card_label(best['card'])}"
-            elif self.turn == 0 or self.turn == 1:
-                text = f"💡 Suggerimento AI: Gioca {card_label(best['card'])}"
             elif len(suggestions) == 1:
                 text = f"💡 Suggerimento AI: Gioca {card_label(best['card'])} ({best['pct']}%)"
             else:
-                righe = []
                 medals = ["🥇", "🥈", "🥉"]
-                for i, item in enumerate(suggestions):
-                    righe.append(
-                        f"{medals[i]} {card_label(item['card'])} → {item['pct']}%"
-                    )
-                text = (
-                    "💡 Migliori giocate:\n" +
-                    "\n".join(righe)
-                )
+                righe = [f"{medals[i]} {card_label(item['card'])} → {item['pct']}%"
+                         for i, item in enumerate(suggestions)]
+                text = "💡 Migliori giocate:\n" + "\n".join(righe)
 
-            tk.Label(
-                self.main_frame,
-                text=text,
-                justify="left",
-                bg="#2d2d00",
-                fg="#ffd700",
-                font=self.bold,
-                padx=10,
-                pady=6,
-                anchor="w"
-            ).pack(fill="x", pady=(10, 0))
+            tk.Label(self.main_frame, text=text, justify="left",
+                     bg="#2d2d00", fg="#ffd700", font=self.bold,
+                     padx=10, pady=6, anchor="w").pack(fill="x", pady=(10, 0))
 
         # 3. Vai al feedback
         can_go = self.my_card is not None and self.cpu_color is not None
         btn_row = tk.Frame(self.main_frame, bg=self.BG)
-        btn_row.pack(anchor="w", pady=(15,0))
-        self._btn(btn_row, "Avanti al Risultato", self._go_feedback, 
+        btn_row.pack(anchor="w", pady=(15, 0))
+        self._btn(btn_row, "Avanti al Risultato", self._go_feedback,
                   bg="#1a4a2a" if can_go else self.BTN_BG,
                   fg=self.GREEN if can_go else self.MUTED,
                   state="normal" if can_go else "disabled").pack(side="left")
-
 
     def _go_feedback(self):
         self.phase = "feedback"
@@ -642,6 +594,7 @@ class ContesaApp:
         return {
             "my_hand": self.my_hand.copy(),
             "cpu_possible": self.cpu_possible.copy(),
+            "cpu_confirmed_played": list(self.cpu_confirmed_played),
             "turn": self.turn,
             "wins": self.wins,
             "losses": self.losses,
@@ -655,26 +608,27 @@ class ContesaApp:
             "phase": self.phase,
             "turn_history": [dict(item) for item in self.turn_history],
             "gomsg": self.gomsg.cget("text"),
-            "log": self.log_text.get("1.0", "end")
+            "log": self.log_text.get("1.0", "end"),
         }
 
     def _undo(self):
         if not self.history:
             return
         state = self.history.pop()
-        self.my_hand      = state["my_hand"]
+        self.my_hand = state["my_hand"]
         self.cpu_possible = state["cpu_possible"]
-        self.turn         = state["turn"]
-        self.wins         = state["wins"]
-        self.losses       = state["losses"]
-        self.ties         = state.get("ties", 0)
-        self.coins        = state["coins"]
-        self.done         = state["done"]
-        self.who_first    = state["who_first"]
-        self.my_card      = state["my_card"]
-        self.cpu_color    = state["cpu_color"]
-        self.feedback     = state["feedback"]
-        self.phase        = state["phase"]
+        self.cpu_confirmed_played = state.get("cpu_confirmed_played", [])
+        self.turn = state["turn"]
+        self.wins = state["wins"]
+        self.losses = state["losses"]
+        self.ties = state.get("ties", 0)
+        self.coins = state["coins"]
+        self.done = state["done"]
+        self.who_first = state["who_first"]
+        self.my_card = state["my_card"]
+        self.cpu_color = state["cpu_color"]
+        self.feedback = state["feedback"]
+        self.phase = state["phase"]
         self.gomsg.config(text=state["gomsg"])
         self.log_text.config(state="normal")
         self.log_text.delete("1.0", "end")
@@ -688,23 +642,22 @@ class ContesaApp:
 
     def _render_feedback(self):
         self._section(f"Rispetto alla tua carta {card_label(self.my_card)}, qual è il risultato?")
-
         row = tk.Frame(self.main_frame, bg=self.BG)
         row.pack(anchor="w", pady=4)
 
         for label, val, sel_bg, sel_fg in [
-            ("Hai vinto",  "win",  "#1a3a2a", self.GREEN),
-            ("Pari",            "par",  "#333333", self.FG),
+            ("Hai vinto", "win", "#1a3a2a", self.GREEN),
+            ("Pari", "par", "#333333", self.FG),
             ("Hai perso", "lose", "#3a1a1a", self.RED),
         ]:
             sel = self.feedback == val
             self._btn(row, label, lambda v=val: self._set_feedback(v),
                       bg=sel_bg if sel else self.BTN_BG,
-                      fg=sel_fg if sel else self.BTN_FG).pack(side="left", padx=(0,6))
+                      fg=sel_fg if sel else self.BTN_FG).pack(side="left", padx=(0, 6))
 
         tk.Label(self.main_frame,
                  text="Indica se il tuo punteggio è stato una vittoria, un pareggio o una sconfitta.",
-                 bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(8,0))
+                 bg=self.BG, fg=self.MUTED, font=self.small).pack(anchor="w", pady=(8, 0))
 
         if self.feedback is not None:
             surv = self._surviving()
@@ -719,13 +672,13 @@ class ContesaApp:
                          font=self.normal, padx=10, pady=6, anchor="w").pack(fill="x", pady=4)
 
         btn_row = tk.Frame(self.main_frame, bg=self.BG)
-        btn_row.pack(anchor="w", pady=(15,4))
+        btn_row.pack(anchor="w", pady=(15, 4))
 
         can = self.feedback is not None and len(self._surviving()) > 0
         self._btn(btn_row, "Conferma Turno", self._confirm_turn,
                   bg="#1a4a2a" if can else self.BTN_BG,
                   fg=self.GREEN if can else self.MUTED,
-                  state="normal" if can else "disabled").pack(side="left", padx=(0,8))
+                  state="normal" if can else "disabled").pack(side="left", padx=(0, 8))
         self._btn(btn_row, "Indietro", self._go_back).pack(side="left")
 
     def _set_feedback(self, val):
@@ -745,22 +698,28 @@ class ContesaApp:
         if not surv:
             return
 
+        # Snapshot PRIMA di modificare lo stato (per undo corretto)
+        self.history.append(self._snapshot_state())
+        self.undo_btn.config(state="normal")
+
+        # Deduzione carta computer
         deduced_card_str = ""
         if len(surv) == 1:
             exact_card = surv[0]
             if exact_card in self.cpu_possible:
                 self.cpu_possible.remove(exact_card)
-                deduced_card_str = f" [Rimossa in auto: {card_label(exact_card)}]"
+            self.cpu_confirmed_played.append(exact_card)
+            deduced_card_str = f" [Dedotta: {card_label(exact_card)}]"
         else:
-            deduced_card_str = f" [Era una tra: {','.join(str(c) for c in surv)}]"
+            deduced_card_str = f" [Era una tra: {', '.join(card_label(c) for c in surv)}]"
 
-        self.history.append(self._snapshot_state())
-        self.undo_btn.config(state="normal")
+        # Rimuovi la carta giocata dal giocatore (una sola volta)
         if self.my_card in self.my_hand:
             self.my_hand.remove(self.my_card)
 
+        # Aggiorna statistiche
         if self.feedback == "win":
-            self.wins  += 1
+            self.wins += 1
             res = "Vinto +1"
         elif self.feedback == "par":
             self.ties += 1
@@ -770,7 +729,7 @@ class ContesaApp:
             res = "Perso"
 
         col_str = "Nera" if self.cpu_color == "black" else "Bianca"
-        self._log(f"T{self.turn}: {card_label(self.my_card)} vs {col_str} → {res}{deduced_card_str}")
+        self._log(f"T{self.turn + 1}: {card_label(self.my_card)} vs {col_str} → {res}{deduced_card_str}")
 
         self.turn_history.append({
             "cpu_color": self.cpu_color,
@@ -779,29 +738,20 @@ class ContesaApp:
         })
 
         self.cpu_possible = sorted(self._deduce_cpu_remaining())
-
-        self.turn     += 1
-        self.my_card   = None
-        self.feedback  = None
+        self.turn += 1
+        self.my_card = None
+        self.feedback = None
         self.cpu_color = None
-        self.phase     = "action"
+        self.phase = "action"
 
         if not self.my_hand:
             self.done = True
-            cpu_score = self.losses
-            my_score = self.wins
-            score_diff = my_score - cpu_score
-            if score_diff > 0:
-                self.coins = self.wins + score_diff
-            else:
-                self.coins = self.wins
+            score_diff = self.wins - self.losses
+            self.coins = self.wins + max(0, score_diff)
+            result_str = "Vittoria! 🏆" if score_diff > 0 else ("Pareggio" if score_diff == 0 else "Sconfitta")
             self.gomsg.config(
-                text=f"Partita Conclusa! {self.wins} vitt, {self.losses} scf, {self.ties} par → {self.coins} monete.")
-            # Salva i log della partita appena conclusa
-            try:
-                self._save_game_log()
-            except Exception:
-                pass
+                text=f"Partita Conclusa! {result_str} — "
+                     f"{self.wins}V {self.losses}S {self.ties}P → {self.coins} monete")
 
         self._update_stats()
         self._render_cpu_deck()
@@ -809,74 +759,14 @@ class ContesaApp:
 
     def _log(self, text):
         self.log_text.config(state="normal")
-        self.log_text.insert("1.0", text + "\n")
+        self.log_text.insert("end", text + "\n")
+        self.log_text.see("end")
         self.log_text.config(state="disabled")
 
     def _clear_log(self):
         self.log_text.config(state="normal")
         self.log_text.delete("1.0", "end")
         self.log_text.config(state="disabled")
-
-    def _save_game_log(self):
-        """Salva l'intero log della partita su logs.txt nella cartella principale del progetto."""
-        try:
-            # Use script directory as project root (logs are next to the script)
-            project_root = SCRIPT_DIR
-
-            # Choose file based on who started
-            if self.who_first == "me":
-                target_file = "logs_IO.txt"
-            else:
-                target_file = "logs_PC.txt"
-
-            logs_path = os.path.join(project_root, target_file)
-
-            sep = "#" * 60
-            header = f"==== Partita: {datetime.now().isoformat()} ===="
-            started_by = "Iniziata da: Giocatore" if self.who_first == "me" else "Iniziata da: Computer"
-            final = (
-                f"Vittorie: {self.wins}, Sconfitte: {self.losses}, "
-                f"Pari: {self.ties}, Monete: {self.coins}"
-            )
-
-            lines = [sep, header, started_by, final, "Turni:"]
-            for i, t in enumerate(self.turn_history):
-                card = card_label(t.get("my_card")) if t.get("my_card") is not None else "-"
-                color = t.get("cpu_color") or "-"
-                fb = t.get("feedback") or "-"
-                lines.append(f"T{i}: {card} vs {color} -> {fb}")
-
-            lines.append("Log GUI:")
-            gui_log = self.log_text.get("1.0", "end").strip()
-            if gui_log:
-                lines.extend(gui_log.splitlines())
-
-            lines.append(sep)
-
-            with open(logs_path, "a", encoding="utf-8") as f:
-                f.write("\n".join(lines) + "\n")
-
-            # Also append a JSON record (ndjson) for easier analysis
-            json_obj = {
-                "timestamp": datetime.now().isoformat(),
-                "started_by": "me" if self.who_first == "me" else "cpu",
-                "wins": self.wins,
-                "losses": self.losses,
-                "ties": self.ties,
-                "coins": self.coins,
-                "turn_history": self.turn_history,
-            }
-            json_path = os.path.splitext(logs_path)[0] + ".json"
-            try:
-                with open(json_path, "a", encoding="utf-8") as jf:
-                    jf.write(json.dumps(json_obj, ensure_ascii=False) + "\n")
-            except Exception:
-                pass
-
-            # Mostra conferma all'utente
-            self._log(f"Log salvato su {logs_path}")
-        except Exception as e:
-            self._log(f"Errore salvataggio log: {e}")
 
 
 if __name__ == "__main__":
