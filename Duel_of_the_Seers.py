@@ -393,7 +393,9 @@ class ContesaApp:
             # dal basso e conserva le carte alte.
             ranked = sorted(self.my_hand)
 
-        return [{"card": c, "pct": pct(c)} for c in ranked[:3]]
+        # Ordina le carte per probabilità di vittoria (`pct`) decrescente
+        ranked_by_pct = sorted(ranked, key=lambda c: (-pct(c), c))
+        return [{"card": c, "pct": pct(c)} for c in ranked_by_pct[:3]]
 
     def _deduce_cpu_remaining(self):
         manual = set(self.cpu_possible)
