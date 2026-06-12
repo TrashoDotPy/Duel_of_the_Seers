@@ -316,43 +316,100 @@ class ContesaApp:
         return warnings
 
     def _get_suggestion(self):
-        """Restituisce le migliori carte da giocare ordinate per probabilità e conservazione."""
+        """
+        Suggerimento AI basato su Expected Value con formula monete non lineare.
+
+        Principi matematici:
+        - monete = vittorie + max(0, vittorie - sconfitte) = vittorie + max(0, 2V-9)
+        - La soglia critica è 5 vittorie: il 5° punto vale il doppio degli altri.
+        - Obiettivo: massimizzare P(vittorie >= 5), non solo il win rate per turno.
+        - Strategia: gioca la carta MINIMA che supera la soglia P(win) >= 60%
+          rispetto alle carte CPU ancora possibili (aggiornate bayesianamente).
+          Se nessuna carta raggiunge la soglia, sacrifica la più piccola disponibile.
+        - La soglia si abbassa (40%) se siamo sotto il ritmo 5/9 necessario,
+          e si alza (70%) se siamo già avanti per conservare le carte forti.
+        """
         if not self.my_hand:
             return []
 
-        # Prime due mosse: suggerimenti fissi
+        # T0/T1: sacrifici fissi — matematicamente ottimali (0 e 1 non vincono quasi mai)
         if self.turn == 0:
-            return [{"card": 0, "pct": 0, "fixed": "Apertura consigliata"}]
+            return [{"card": 0, "pct": 0, "fixed": "Sacrificio ottimale (EV)"}]
         if self.turn == 1:
             if 1 in self.my_hand:
-                return [{"card": 1, "pct": 0, "fixed": "Continuazione consigliata"}]
+                return [{"card": 1, "pct": 0, "fixed": "Sacrificio ottimale (EV)"}]
             else:
                 return []
 
-        # Calcola le percentuali usando le carte effettive del cpu (filtrate per colore se noto)
+        # Carte CPU ancora possibili filtrate per colore (se noto)
         eff = self._effective_cpu()
         total = len(eff)
-
         if total == 0:
             return []
 
-        card_pcts = {c: round(sum(1 for x in eff if c > x) / total * 100)
-                     for c in self.my_hand}
+        # P(win) per ogni carta della mia mano rispetto alle CPU effettive
+        def p_win(card):
+            return sum(1 for x in eff if card > x) / total
 
-        if not card_pcts:
-            return []
+        # Turni rimanenti (incluso questo)
+        turns_left = 9 - self.turn
+        wins_needed_for_5 = max(0, 5 - self.wins)
 
-        # Conservazione risorse: preferiamo carte più basse se la probabilità è simile.
-        card_scores = {c: card_pcts[c] - c * 2.5 for c in self.my_hand}
-        sorted_cards = sorted(self.my_hand, key=lambda c: (-card_scores[c], c))
+        # Soglia adattiva: se siamo in ritardo, abbassa la soglia per rischiare di più;
+        # se siamo in vantaggio, alzala per conservare le carte alte.
+        # Usiamo i turni rimanenti come riferimento (non quelli passati) per evitare
+        # falsi allarmi ai primissimi turni dove wins=0 è normale.
+        wins_needed_for_5 = max(0, 5 - self.wins)
+        turns_left = 9 - self.turn
+        pace_ok = (self.wins / max(self.turn, 1)) >= (5 / 9)
 
-        # Se la probabilità massima è bassa, usiamo un sacrificio conservativo.
-        max_pct = max(card_pcts.values())
-        if max_pct < 35:
-            lowest = sorted(self.my_hand)
-            return [{"card": lowest[0], "pct": card_pcts[lowest[0]]}]
+        if turns_left > 0 and wins_needed_for_5 > turns_left * 0.75:
+            # Situazione critica: serve più del 75% di win rate nei turni rimanenti
+            threshold = 0.40
+        elif self.wins >= 5:
+            # Già sopra soglia monete: conserva le carte alte
+            threshold = 0.70
+        else:
+            # Ritmo normale: soglia matematica del 60%
+            threshold = 0.60
 
-        return [{"card": c, "pct": card_pcts[c]} for c in sorted_cards[:3]]
+        # Calcola P(win) e score EV per ogni carta
+        # Score EV = P(win ora) - costo opportunità (penalità per usare una carta alta
+        # quando non è necessario, perché potrebbe servire in un turno più favorevole)
+        scored = []
+        for card in self.my_hand:
+            pw = p_win(card)
+            # Costo opportunità: le carte alte hanno più valore futuro
+            # (stima: ogni punto di valore carta = ~3% di win rate futuro medio)
+            opportunity_cost = (card / 8) * 0.15
+            ev_score = pw - opportunity_cost
+            scored.append({
+                "card": card,
+                "pct": round(pw * 100),
+                "ev": round(ev_score * 100, 1),
+                "above_threshold": pw >= threshold,
+            })
+
+        # Ordina: prima quelli sopra soglia (per carta crescente = minimo sufficiente),
+        # poi quelli sotto soglia (per EV score decrescente come fallback)
+        above = sorted([s for s in scored if s["above_threshold"]], key=lambda s: s["card"])
+        below = sorted([s for s in scored if not s["above_threshold"]], key=lambda s: -s["ev"])
+
+        if above:
+            # Strategia principale: carta minima che supera la soglia
+            best = above[0]
+            result = [{"card": best["card"], "pct": best["pct"], "ev": best["ev"],
+                       "label": f"Min-Sufficient ≥{round(threshold*100)}% (EV)"}]
+            # Mostra anche le alternative sopra soglia (max 2 extra)
+            for alt in above[1:3]:
+                result.append({"card": alt["card"], "pct": alt["pct"], "ev": alt["ev"]})
+            return result
+        else:
+            # Nessuna carta sopra soglia: sacrifica la più piccola
+            sacrifice = sorted(self.my_hand)[0]
+            pw = p_win(sacrifice)
+            return [{"card": sacrifice, "pct": round(pw * 100),
+                     "ev": 0, "label": "Sacrificio (nessuna carta ≥ soglia)"}]
 
     def _deduce_cpu_remaining(self):
         manual = set(self.cpu_possible)
@@ -565,8 +622,14 @@ class ContesaApp:
             best = suggestions[0]
             if "fixed" in best:
                 text = f"💡 {best['fixed']}: {card_label(best['card'])}"
-            elif len(suggestions) == 1:
-                text = f"💡 Suggerimento AI: Gioca {card_label(best['card'])} ({best['pct']}%)"
+            elif "label" in best and len(suggestions) == 1:
+                text = f"💡 {best['label']}: {card_label(best['card'])} ({best['pct']}%)"
+            elif "label" in best:
+                medals = ["🥇", "🥈", "🥉"]
+                righe = [f"{medals[0]} {card_label(best['card'])} → {best['pct']}%  [{best['label']}]"]
+                for i, item in enumerate(suggestions[1:], 1):
+                    righe.append(f"{medals[i]} {card_label(item['card'])} → {item['pct']}%")
+                text = "💡 Strategia EV:\n" + "\n".join(righe)
             else:
                 medals = ["🥇", "🥈", "🥉"]
                 righe = [f"{medals[i]} {card_label(item['card'])} → {item['pct']}%"
