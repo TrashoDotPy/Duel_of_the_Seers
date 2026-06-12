@@ -34,28 +34,36 @@ def card_label(c):
     return f"{c}{suit(c)}"
 
 
-def cpu_hand_probabilities(cpu_possible, turn_history, cap=50000):
+def cpu_hand_probabilities(cpu_possible, turn_history, cpu_played=(), cap=50000):
     """P(in mano) per ogni carta del PC, dedotta dai vincoli della partita corrente.
 
     Considera tutte le permutazioni della mano del PC coerenti con i turni passati
     (colore dichiarato + esito) e calcola, per ogni carta ancora possibile, in quante
-    di esse risulta ancora in mano. Ritorna {carta: probabilità in [0,1]}.
+    di esse risulta ancora in mano. Ritorna {carta: probabilità in [0,1]} solo per le
+    carte in `cpu_possible`.
+
+    `cpu_played` sono le carte già dedotte come giocate dal PC: non sono più in mano
+    (e non compaiono nel risultato), ma fanno parte dell'universo da cui pescare per
+    riempire i turni passati — in particolare i pareggi, in cui la carta giocata viene
+    rimossa da `cpu_possible` pur restando un vincolo necessario della ricostruzione.
 
     Funzione pura (nessuno stato GUI): testabile in isolamento.
     """
-    manual = set(cpu_possible)
-    if not manual:
+    possible = set(cpu_possible)
+    universe = possible | set(cpu_played)
+    if not possible:
         return {}
     if not turn_history:
-        return {c: 1.0 for c in manual}
+        return {c: 1.0 for c in possible}
 
-    # Candidati coerenti per ogni turno passato (stessa logica di _deduce_cpu_remaining)
+    # Candidati coerenti per ogni turno passato (stessa logica di _deduce_cpu_remaining),
+    # pescati dall'intero universo (incluse le carte già dedotte come giocate).
     allowed_options = []
     for item in turn_history:
         color = item["cpu_color"]
         my_card = item["my_card"]
         feedback = item["feedback"]
-        candidates = [c for c in manual if (is_black(c) if color == "black" else not is_black(c))]
+        candidates = [c for c in universe if (is_black(c) if color == "black" else not is_black(c))]
         if feedback == "win":
             candidates = [c for c in candidates if c < my_card]
         elif feedback == "lose":
@@ -66,14 +74,14 @@ def cpu_hand_probabilities(cpu_possible, turn_history, cap=50000):
             candidates = []
         if not candidates:
             # Dati contraddittori: nessuna info affidabile -> fallback neutro
-            return {c: 1.0 for c in manual}
+            return {c: 1.0 for c in possible}
         allowed_options.append(candidates)
 
     # Ordina per ampiezza per potare prima (non cambia i conteggi)
     allowed_options.sort(key=len)
 
     total = 0
-    remaining_counts = {c: 0 for c in manual}
+    remaining_counts = {c: 0 for c in universe}
     aborted = False
 
     def dfs(index, used):
@@ -85,7 +93,7 @@ def cpu_hand_probabilities(cpu_possible, turn_history, cap=50000):
             if total > cap:
                 aborted = True
                 return
-            for c in manual:
+            for c in universe:
                 if c not in used:
                     remaining_counts[c] += 1
             return
@@ -102,9 +110,9 @@ def cpu_hand_probabilities(cpu_possible, turn_history, cap=50000):
 
     if aborted or total == 0:
         # Troppe permutazioni o nessuna coerente: fallback neutro, non blocca la UI
-        return {c: 1.0 for c in manual}
+        return {c: 1.0 for c in possible}
 
-    return {c: remaining_counts[c] / total for c in manual}
+    return {c: remaining_counts[c] / total for c in possible}
 
 
 class ContesaApp:
@@ -486,7 +494,8 @@ class ContesaApp:
 
     def _cpu_hand_probabilities(self):
         """P(in mano) per carta del PC, dedotta dai turni passati della partita."""
-        return cpu_hand_probabilities(self.cpu_possible, self.turn_history)
+        return cpu_hand_probabilities(self.cpu_possible, self.turn_history,
+                                      self.cpu_confirmed_played)
 
     def _deduce_cpu_remaining(self):
         manual = set(self.cpu_possible)

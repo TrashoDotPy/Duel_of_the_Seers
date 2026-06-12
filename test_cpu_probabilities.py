@@ -41,6 +41,34 @@ def test_contradiction_fallback():
     assert all(approx(p[c], 1.0) for c in range(9)), p
 
 
+def test_par_alone_keeps_others_full():
+    # T0 pareggio: il PC ha giocato esattamente la mia carta (3). La carta dedotta
+    # esce da cpu_possible ed entra in cpu_confirmed_played. Le altre restano 100%.
+    cpu_possible = [0, 1, 2, 4, 5, 6, 7, 8]
+    played = [3]
+    th = [{"cpu_color": "white", "my_card": 3, "feedback": "par"}]
+    p = cpu_hand_probabilities(cpu_possible, th, played)
+    assert 3 not in p, p
+    assert all(approx(p[c], 1.0) for c in cpu_possible), p
+
+
+def test_par_after_win_preserves_earlier_info():
+    # T0: nera, gioco 5, vinco -> 0/2/4 informativi. T1: pareggio su 3 (rimossa).
+    # Le percentuali dedotte a T0 NON devono azzerarsi a 100%.
+    cpu_possible = [0, 1, 2, 4, 5, 6, 7, 8]
+    played = [3]
+    th = [
+        {"cpu_color": "black", "my_card": 5, "feedback": "win"},
+        {"cpu_color": "white", "my_card": 3, "feedback": "par"},
+    ]
+    p = cpu_hand_probabilities(cpu_possible, th, played)
+    assert 3 not in p, p
+    for c in (0, 2, 4):
+        assert approx(p[c], 2 / 3), (c, p[c])
+    for c in (1, 5, 6, 7, 8):
+        assert approx(p[c], 1.0), (c, p[c])
+
+
 def test_respects_manual_possible():
     # Se l'utente ha rimosso a mano alcune carte, restano solo quelle in cpu_possible
     th = [{"cpu_color": "black", "my_card": 5, "feedback": "win"}]
@@ -57,5 +85,7 @@ if __name__ == "__main__":
     test_example_t0_black_win5()
     test_two_identical_constraints()
     test_contradiction_fallback()
+    test_par_alone_keeps_others_full()
+    test_par_after_win_preserves_earlier_info()
     test_respects_manual_possible()
     print("ALL TESTS PASSED")
