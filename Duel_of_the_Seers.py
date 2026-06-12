@@ -34,6 +34,87 @@ def card_label(c):
     return f"{c}{suit(c)}"
 
 
+def cpu_hand_probabilities(cpu_possible, turn_history, cpu_played=(), cap=50000):
+    """P(in mano) per ogni carta del PC, dedotta dai vincoli della partita corrente.
+
+    Considera tutte le permutazioni della mano del PC coerenti con i turni passati
+    (colore dichiarato + esito) e calcola, per ogni carta ancora possibile, in quante
+    di esse risulta ancora in mano. Ritorna {carta: probabilità in [0,1]} solo per le
+    carte in `cpu_possible`.
+
+    `cpu_played` sono le carte già dedotte come giocate dal PC: non sono più in mano
+    (e non compaiono nel risultato), ma fanno parte dell'universo da cui pescare per
+    riempire i turni passati — in particolare i pareggi, in cui la carta giocata viene
+    rimossa da `cpu_possible` pur restando un vincolo necessario della ricostruzione.
+
+    Funzione pura (nessuno stato GUI): testabile in isolamento.
+    """
+    possible = set(cpu_possible)
+    universe = possible | set(cpu_played)
+    if not possible:
+        return {}
+    if not turn_history:
+        return {c: 1.0 for c in possible}
+
+    # Candidati coerenti per ogni turno passato (stessa logica di _deduce_cpu_remaining),
+    # pescati dall'intero universo (incluse le carte già dedotte come giocate).
+    allowed_options = []
+    for item in turn_history:
+        color = item["cpu_color"]
+        my_card = item["my_card"]
+        feedback = item["feedback"]
+        candidates = [c for c in universe if (is_black(c) if color == "black" else not is_black(c))]
+        if feedback == "win":
+            candidates = [c for c in candidates if c < my_card]
+        elif feedback == "lose":
+            candidates = [c for c in candidates if c > my_card]
+        elif feedback == "par":
+            candidates = [c for c in candidates if c == my_card]
+        else:
+            candidates = []
+        if not candidates:
+            # Dati contraddittori: nessuna info affidabile -> fallback neutro
+            return {c: 1.0 for c in possible}
+        allowed_options.append(candidates)
+
+    # Ordina per ampiezza per potare prima (non cambia i conteggi)
+    allowed_options.sort(key=len)
+
+    total = 0
+    remaining_counts = {c: 0 for c in universe}
+    aborted = False
+
+    def dfs(index, used):
+        nonlocal total, aborted
+        if aborted:
+            return
+        if index == len(allowed_options):
+            total += 1
+            if total > cap:
+                aborted = True
+                return
+            for c in universe:
+                if c not in used:
+                    remaining_counts[c] += 1
+            return
+        for c in allowed_options[index]:
+            if c in used:
+                continue
+            used.add(c)
+            dfs(index + 1, used)
+            used.remove(c)
+            if aborted:
+                return
+
+    dfs(0, set())
+
+    if aborted or total == 0:
+        # Troppe permutazioni o nessuna coerente: fallback neutro, non blocca la UI
+        return {c: 1.0 for c in possible}
+
+    return {c: remaining_counts[c] / total for c in possible}
+
+
 class ContesaApp:
 
     BG = "#1b1b1f"
@@ -411,6 +492,11 @@ class ContesaApp:
             return [{"card": sacrifice, "pct": round(pw * 100),
                      "ev": 0, "label": "Sacrificio (nessuna carta ≥ soglia)"}]
 
+    def _cpu_hand_probabilities(self):
+        """P(in mano) per carta del PC, dedotta dai turni passati della partita."""
+        return cpu_hand_probabilities(self.cpu_possible, self.turn_history,
+                                      self.cpu_confirmed_played)
+
     def _deduce_cpu_remaining(self):
         manual = set(self.cpu_possible)
         if not self.turn_history:
@@ -491,6 +577,8 @@ class ContesaApp:
         for w in self.cpu_deck_frame.winfo_children():
             w.destroy()
 
+        probs = self._cpu_hand_probabilities()
+
         for c in ALL_CARDS:
             is_active = c in self.cpu_possible
             bg = self.CARD_BG if is_active else self.SECTION_BG
@@ -499,11 +587,16 @@ class ContesaApp:
 
             outer = tk.Frame(self.cpu_deck_frame, bg=bd, padx=1, pady=1)
             outer.pack(side="left", padx=3)
-            inner = tk.Frame(outer, bg=bg, width=48, height=66, bd=1, relief="solid")
+            inner = tk.Frame(outer, bg=bg, width=48, height=78, bd=1, relief="solid")
             inner.pack()
             inner.pack_propagate(False)
             tk.Label(inner, text=str(c), bg=bg, fg=fg, font=self.bold).pack(expand=True)
             tk.Label(inner, text=suit(c), bg=bg, fg=fg, font=self.suit_font).pack()
+
+            if is_active:
+                pct = round(probs.get(c, 1.0) * 100)
+                p_col = self.GREEN if pct >= 67 else (self.RED if pct < 34 else self.ORANGE)
+                tk.Label(inner, text=f"{pct}%", bg=bg, fg=p_col, font=self.small).pack(pady=(0, 3))
 
             def on_click(event, card=c):
                 if card in self.cpu_possible:
