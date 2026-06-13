@@ -776,3 +776,78 @@ T3: 6♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡]
 T2: 1♡ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
 T1: 0♠ vs Bianca → Perso [Era una tra: 1♡, 3♡, 5♡, 7♡]
 ############################################################
+############################################################
+==== Partita: 2026-06-14T01:49:54.788654 ====
+Iniziata da: Computer
+Vittorie: 5, Sconfitte: 4, Pari: 0, Monete: 6
+Turni:
+T0: 0♠ vs black -> lose
+T1: 1♡ vs black -> lose
+T2: 6♠ vs white -> win
+T3: 7♡ vs white -> win
+T4: 8♠ vs white -> win
+T5: 5♡ vs black -> win
+T6: 2♠ vs white -> lose
+T7: 3♡ vs black -> lose
+T8: 4♠ vs black -> win
+Log GUI:
+T9: 4♠ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠]
+T8: 3♡ vs Nera → Perso [Era una tra: 4♠, 6♠, 8♠]
+T7: 2♠ vs Bianca → Perso [Era una tra: 3♡, 5♡, 7♡]
+T6: 5♡ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠, 4♠]
+T5: 8♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡, 7♡]
+T4: 7♡ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡]
+T3: 6♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡]
+T2: 1♡ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+T1: 0♠ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+############################################################
+############################################################
+==== Partita: 2026-06-14T01:50:56.440411 ====
+Iniziata da: Computer
+Vittorie: 4, Sconfitte: 5, Pari: 0, Monete: 4
+Turni:
+T0: 0♠ vs black -> lose
+T1: 1♡ vs black -> lose
+T2: 6♠ vs white -> win
+T3: 5♡ vs black -> win
+T4: 7♡ vs black -> lose
+T5: 8♠ vs white -> win
+T6: 2♠ vs black -> lose
+T7: 4♠ vs white -> win
+T8: 3♡ vs white -> lose
+Log GUI:
+T9: 3♡ vs Bianca → Perso [Era una tra: 5♡, 7♡]
+T8: 4♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡]
+T7: 2♠ vs Nera → Perso [Era una tra: 4♠, 6♠]
+T6: 8♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡, 7♡]
+T5: 7♡ vs Nera → Perso [Dedotta: 8♠]
+T4: 5♡ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠, 4♠]
+T3: 6♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡]
+T2: 1♡ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+T1: 0♠ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+############################################################
+############################################################
+==== Partita: 2026-06-14T01:52:07.425085 ====
+Iniziata da: Computer
+Vittorie: 3, Sconfitte: 5, Pari: 1, Monete: 3
+Turni:
+T0: 0♠ vs black -> lose
+T1: 1♡ vs white -> par
+T2: 5♡ vs black -> lose
+T3: 6♠ vs white -> lose
+T4: 3♡ vs black -> lose
+T5: 4♠ vs black -> win
+T6: 7♡ vs black -> win
+T7: 8♠ vs white -> win
+T8: 2♠ vs white -> lose
+Log GUI:
+T9: 2♠ vs Bianca → Perso [Era una tra: 3♡, 5♡]
+T8: 8♠ vs Bianca → Vinto +1 [Era una tra: 3♡, 5♡]
+T7: 7♡ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠, 4♠, 6♠]
+T6: 4♠ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠]
+T5: 3♡ vs Nera → Perso [Era una tra: 4♠, 6♠, 8♠]
+T4: 6♠ vs Bianca → Perso [Dedotta: 7♡]
+T3: 5♡ vs Nera → Perso [Era una tra: 6♠, 8♠]
+T2: 1♡ vs Bianca → Pari [Dedotta: 1♡]
+T1: 0♠ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+############################################################
