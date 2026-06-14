@@ -1250,3 +1250,128 @@ T3: 6♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡]
 T2: 1♡ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
 T1: 0♠ vs Bianca → Perso [Era una tra: 1♡, 3♡, 5♡, 7♡]
 ############################################################
+############################################################
+==== Partita: 2026-06-14T08:44:49.383039 ====
+Iniziata da: Giocatore
+Vittorie: 5, Sconfitte: 3, Pari: 1, Monete: 7
+Turni:
+T0: 0♠ vs black -> lose
+T1: 1♡ vs black -> win
+T2: 6♠ vs black -> par
+T3: 7♡ vs black -> win
+T4: 8♠ vs white -> win
+T5: 2♠ vs white -> lose
+T6: 3♡ vs white -> win
+T7: 4♠ vs white -> win
+T8: 5♡ vs black -> lose
+Log GUI:
+T9: 5♡ vs Nera → Perso [Dedotta: 8♠]
+T8: 4♠ vs Bianca → Vinto +1 [Dedotta: 3♡]
+T7: 3♡ vs Bianca → Vinto +1 [Dedotta: 1♡]
+T6: 2♠ vs Bianca → Perso [Era una tra: 3♡, 5♡, 7♡]
+T5: 8♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡, 7♡]
+T4: 7♡ vs Nera → Vinto +1 [Era una tra: 2♠, 4♠]
+T3: 6♠ vs Nera → Pari [Dedotta: 6♠]
+T2: 1♡ vs Nera → Vinto +1 [Dedotta: 0♠]
+T1: 0♠ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+############################################################
+############################################################
+==== Partita: 2026-06-14T08:47:53.686076 ====
+Iniziata da: Giocatore
+Vittorie: 3, Sconfitte: 5, Pari: 1, Monete: 3
+Turni:
+T0: 0♠ vs black -> lose
+T1: 1♡ vs white -> par
+T2: 6♠ vs white -> lose
+T3: 4♠ vs white -> win
+T4: 5♡ vs black -> lose
+T5: 7♡ vs black -> win
+T6: 8♠ vs white -> win
+T7: 3♡ vs black -> lose
+T8: 2♠ vs black -> lose
+Log GUI:
+T9: 2♠ vs Nera → Perso [Era una tra: 4♠, 6♠, 8♠]
+T8: 3♡ vs Nera → Perso [Era una tra: 4♠, 6♠, 8♠]
+T7: 8♠ vs Bianca → Vinto +1 [Dedotta: 5♡]
+T6: 7♡ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠, 4♠, 6♠]
+T5: 5♡ vs Nera → Perso [Era una tra: 6♠, 8♠]
+T4: 4♠ vs Bianca → Vinto +1 [Dedotta: 3♡]
+T3: 6♠ vs Bianca → Perso [Dedotta: 7♡]
+T2: 1♡ vs Bianca → Pari [Dedotta: 1♡]
+T1: 0♠ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+############################################################
+############################################################
+==== Partita: 2026-06-14T08:52:19.348129 ====
+Iniziata da: Giocatore
+Vittorie: 3, Sconfitte: 6, Pari: 0, Monete: 3
+Turni:
+T0: 0♠ vs white -> lose
+T1: 1♡ vs black -> lose
+T2: 6♠ vs black -> win
+T3: 7♡ vs black -> win
+T4: 8♠ vs black -> win
+T5: 2♠ vs white -> lose
+T6: 3♡ vs white -> lose
+T7: 4♠ vs black -> lose
+T8: 5♡ vs white -> lose
+Log GUI:
+T9: 5♡ vs Bianca → Perso [Dedotta: 7♡]
+T8: 4♠ vs Nera → Perso [Era una tra: 6♠, 8♠]
+T7: 3♡ vs Bianca → Perso [Era una tra: 5♡, 7♡]
+T6: 2♠ vs Bianca → Perso [Era una tra: 3♡, 5♡, 7♡]
+T5: 8♠ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠, 4♠, 6♠]
+T4: 7♡ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠, 4♠, 6♠]
+T3: 6♠ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠, 4♠]
+T2: 1♡ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+T1: 0♠ vs Bianca → Perso [Era una tra: 1♡, 3♡, 5♡, 7♡]
+############################################################
+############################################################
+==== Partita: 2026-06-14T08:54:35.269682 ====
+Iniziata da: Giocatore
+Vittorie: 4, Sconfitte: 5, Pari: 0, Monete: 4
+Turni:
+T0: 0♠ vs white -> lose
+T1: 1♡ vs white -> lose
+T2: 6♠ vs black -> lose
+T3: 4♠ vs black -> lose
+T4: 3♡ vs black -> lose
+T5: 5♡ vs black -> win
+T6: 7♡ vs white -> win
+T7: 8♠ vs white -> win
+T8: 2♠ vs black -> win
+Log GUI:
+T9: 2♠ vs Nera → Vinto +1 [Dedotta: 0♠]
+T8: 8♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡, 7♡]
+T7: 7♡ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡]
+T6: 5♡ vs Nera → Vinto +1 [Era una tra: 0♠, 2♠]
+T5: 3♡ vs Nera → Perso [Dedotta: 4♠]
+T4: 4♠ vs Nera → Perso [Dedotta: 6♠]
+T3: 6♠ vs Nera → Perso [Dedotta: 8♠]
+T2: 1♡ vs Bianca → Perso [Era una tra: 3♡, 5♡, 7♡]
+T1: 0♠ vs Bianca → Perso [Era una tra: 1♡, 3♡, 5♡, 7♡]
+############################################################
+############################################################
+==== Partita: 2026-06-14T08:56:13.456812 ====
+Iniziata da: Giocatore
+Vittorie: 5, Sconfitte: 3, Pari: 1, Monete: 7
+Turni:
+T0: 0♠ vs black -> lose
+T1: 1♡ vs black -> win
+T2: 6♠ vs black -> par
+T3: 7♡ vs black -> win
+T4: 8♠ vs white -> win
+T5: 2♠ vs white -> lose
+T6: 3♡ vs black -> lose
+T7: 4♠ vs white -> win
+T8: 5♡ vs white -> win
+Log GUI:
+T9: 5♡ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡]
+T8: 4♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡]
+T7: 3♡ vs Nera → Perso [Era una tra: 4♠, 8♠]
+T6: 2♠ vs Bianca → Perso [Era una tra: 3♡, 5♡, 7♡]
+T5: 8♠ vs Bianca → Vinto +1 [Era una tra: 1♡, 3♡, 5♡, 7♡]
+T4: 7♡ vs Nera → Vinto +1 [Era una tra: 2♠, 4♠]
+T3: 6♠ vs Nera → Pari [Dedotta: 6♠]
+T2: 1♡ vs Nera → Vinto +1 [Dedotta: 0♠]
+T1: 0♠ vs Nera → Perso [Era una tra: 2♠, 4♠, 6♠, 8♠]
+############################################################
