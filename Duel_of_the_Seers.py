@@ -483,19 +483,37 @@ class ContesaApp:
         for w in self.cpu_deck_frame.winfo_children():
             w.destroy()
 
+        # Per ogni carta CPU possibile, calcola P(mia mano batte questa carta)
+        # = frazione delle mie carte in mano che battono c
+        my_hand_now = list(self.my_hand) if hasattr(self, "my_hand") else []
+
         for c in ALL_CARDS:
             is_active = c in self.cpu_possible
             bg = self.CARD_BG if is_active else self.SECTION_BG
             fg = self.CARD_FG if is_active else self.MUTED
             bd = self.SEL_BD if is_active else self.BTN_BORDER
 
+            # P(vinco | CPU ha questa carta) = quante mie carte battono c
+            if is_active and my_hand_now:
+                beaters = sum(1 for m in my_hand_now if m > c)
+                prob = round(beaters / len(my_hand_now) * 100)
+                p_col = self.GREEN if prob >= 50 else (self.RED if prob < 30 else self.MUTED)
+                pct_str = f"{prob}%"
+            elif is_active:
+                pct_str = "-%"
+                p_col = self.MUTED
+            else:
+                pct_str = ""
+                p_col = self.MUTED
+
             outer = tk.Frame(self.cpu_deck_frame, bg=bd, padx=1, pady=1)
             outer.pack(side="left", padx=3)
-            inner = tk.Frame(outer, bg=bg, width=48, height=66, bd=1, relief="solid")
+            inner = tk.Frame(outer, bg=bg, width=48, height=78, bd=1, relief="solid")
             inner.pack()
             inner.pack_propagate(False)
             tk.Label(inner, text=str(c), bg=bg, fg=fg, font=self.bold).pack(expand=True)
             tk.Label(inner, text=suit(c), bg=bg, fg=fg, font=self.suit_font).pack()
+            tk.Label(inner, text=pct_str, bg=bg, fg=p_col, font=self.small).pack(pady=(0, 3))
 
             def on_click(event, card=c):
                 if card in self.cpu_possible:
