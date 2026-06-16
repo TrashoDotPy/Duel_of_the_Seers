@@ -469,61 +469,46 @@ class ContesaApp:
 
     def _compute_cpu_probabilities(self):
         """
-        Calcola la probabilità bayesiana che ogni carta (0-8) sia ancora in mano alla CPU.
-
-        Approccio enumerativo (DFS):
-        Enumera tutte le possibili assegnazioni di carte CPU ai turni già giocati
-        compatibili con colore+feedback osservati. Per ogni assegnazione valida,
-        le carte rimanenti (non usate) sono quelle ancora in mano alla CPU.
-        La frequenza di ogni carta tra i "rimanenti" di tutte le assegnazioni valide
-        è la probabilità bayesiana aggiornata.
+        Tracking diretto delle probabilità delle carte CPU.
+        Ogni carta parte al 100% ad inizio partita.
+        Ad ogni turno, il colore e il feedback restringono quali carte la CPU
+        poteva avere: le candidate perdono probabilità proporzionalmente.
+        Se una sola carta è compatibile, scende a 0% (certamente già giocata).
         """
-        all_cards = list(range(9))
-        n_turns = len(self.turn_history)
+        probs = {c: 100.0 for c in range(9)}
 
-        if n_turns == 0:
-            total = len(self.cpu_possible)
-            if total == 0:
-                return {c: 0 for c in all_cards}
-            prob = round(100 / total)
-            return {c: (prob if c in self.cpu_possible else 0) for c in all_cards}
+        for t in self.turn_history:
+            col = t["cpu_color"]
+            mc  = t["my_card"]
+            fb  = t["feedback"]
 
-        def compatible_cards(turn_data, available):
-            col = turn_data["cpu_color"]
-            mc = turn_data["my_card"]
-            fb = turn_data["feedback"]
+            # Carte del colore ancora vive (prob > 0)
             if col == "black":
-                cands = [c for c in available if c % 2 == 0]
+                color_set = [c for c in range(9) if c % 2 == 0 and probs[c] > 0]
             else:
-                cands = [c for c in available if c % 2 != 0]
+                color_set = [c for c in range(9) if c % 2 != 0 and probs[c] > 0]
+
+            # Filtra per feedback
             if fb == "win":
-                return [c for c in cands if c < mc]
+                candidates = [c for c in color_set if c < mc]
             elif fb == "lose":
-                return [c for c in cands if c > mc]
+                candidates = [c for c in color_set if c > mc]
             else:
-                return [c for c in cands if c == mc]
+                candidates = [c for c in color_set if c == mc]
 
-        remaining_counts = {c: 0 for c in all_cards}
+            if not candidates:
+                continue
 
-        def dfs(turn_idx, used):
-            if turn_idx == n_turns:
-                for c in self.cpu_possible:
-                    if c not in used:
-                        remaining_counts[c] += 1
-                return
-            available = [c for c in all_cards if c not in used]
-            compat = compatible_cards(self.turn_history[turn_idx], available)
-            for card in compat:
-                used.add(card)
-                dfs(turn_idx + 1, used)
-                used.remove(card)
+            if len(candidates) == 1:
+                # Carta certa: era quella, scende a 0
+                probs[candidates[0]] = 0.0
+            else:
+                # Ogni candidata perde 1/n della sua probabilità attuale
+                for c in candidates:
+                    probs[c] -= probs[c] / len(candidates)
 
-        dfs(0, set())
+        return {c: round(probs[c]) for c in range(9)}
 
-        total = sum(remaining_counts.values())
-        if total == 0:
-            return {c: 0 for c in all_cards}
-        return {c: round(remaining_counts[c] / total * 100) for c in all_cards}
 
 
     def _render_cpu_deck(self):
@@ -553,11 +538,12 @@ class ContesaApp:
 
             prob = cpu_probs.get(c, 0)
             if is_active and prob > 0:
-                p_col = self.GREEN if prob >= 40 else (self.ORANGE if prob >= 20 else self.MUTED)
+                # Verde = ancora molto probabile, arancione = scesa, rosso = quasi certa
+                p_col = self.GREEN if prob >= 80 else (self.ORANGE if prob >= 40 else self.RED)
                 pct_str = f"{prob}%"
             elif is_active:
                 pct_str = "0%"
-                p_col = self.MUTED
+                p_col = self.RED
             else:
                 pct_str = ""
                 p_col = self.MUTED
