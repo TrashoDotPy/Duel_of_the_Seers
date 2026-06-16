@@ -467,6 +467,65 @@ class ContesaApp:
          "action": self._render_action,
          "feedback": self._render_feedback}[self.phase]()
 
+    def _compute_cpu_probabilities(self):
+        """
+        Calcola la probabilità bayesiana che ogni carta (0-8) sia ancora in mano alla CPU.
+
+        Approccio enumerativo (DFS):
+        Enumera tutte le possibili assegnazioni di carte CPU ai turni già giocati
+        compatibili con colore+feedback osservati. Per ogni assegnazione valida,
+        le carte rimanenti (non usate) sono quelle ancora in mano alla CPU.
+        La frequenza di ogni carta tra i "rimanenti" di tutte le assegnazioni valide
+        è la probabilità bayesiana aggiornata.
+        """
+        all_cards = list(range(9))
+        n_turns = len(self.turn_history)
+
+        if n_turns == 0:
+            total = len(self.cpu_possible)
+            if total == 0:
+                return {c: 0 for c in all_cards}
+            prob = round(100 / total)
+            return {c: (prob if c in self.cpu_possible else 0) for c in all_cards}
+
+        def compatible_cards(turn_data, available):
+            col = turn_data["cpu_color"]
+            mc = turn_data["my_card"]
+            fb = turn_data["feedback"]
+            if col == "black":
+                cands = [c for c in available if c % 2 == 0]
+            else:
+                cands = [c for c in available if c % 2 != 0]
+            if fb == "win":
+                return [c for c in cands if c < mc]
+            elif fb == "lose":
+                return [c for c in cands if c > mc]
+            else:
+                return [c for c in cands if c == mc]
+
+        remaining_counts = {c: 0 for c in all_cards}
+
+        def dfs(turn_idx, used):
+            if turn_idx == n_turns:
+                for c in self.cpu_possible:
+                    if c not in used:
+                        remaining_counts[c] += 1
+                return
+            available = [c for c in all_cards if c not in used]
+            compat = compatible_cards(self.turn_history[turn_idx], available)
+            for card in compat:
+                used.add(card)
+                dfs(turn_idx + 1, used)
+                used.remove(card)
+
+        dfs(0, set())
+
+        total = sum(remaining_counts.values())
+        if total == 0:
+            return {c: 0 for c in all_cards}
+        return {c: round(remaining_counts[c] / total * 100) for c in all_cards}
+
+
     def _render_cpu_deck(self):
         possible_count = len(self.cpu_possible)
 
@@ -483,9 +542,8 @@ class ContesaApp:
         for w in self.cpu_deck_frame.winfo_children():
             w.destroy()
 
-        # Per ogni carta CPU possibile, calcola P(mia mano batte questa carta)
-        # = frazione delle mie carte in mano che battono c
-        my_hand_now = list(self.my_hand) if hasattr(self, "my_hand") else []
+        # Probabilità bayesiana aggiornata per ogni carta CPU
+        cpu_probs = self._compute_cpu_probabilities()
 
         for c in ALL_CARDS:
             is_active = c in self.cpu_possible
@@ -493,14 +551,12 @@ class ContesaApp:
             fg = self.CARD_FG if is_active else self.MUTED
             bd = self.SEL_BD if is_active else self.BTN_BORDER
 
-            # P(vinco | CPU ha questa carta) = quante mie carte battono c
-            if is_active and my_hand_now:
-                beaters = sum(1 for m in my_hand_now if m > c)
-                prob = round(beaters / len(my_hand_now) * 100)
-                p_col = self.GREEN if prob >= 50 else (self.RED if prob < 30 else self.MUTED)
+            prob = cpu_probs.get(c, 0)
+            if is_active and prob > 0:
+                p_col = self.GREEN if prob >= 40 else (self.ORANGE if prob >= 20 else self.MUTED)
                 pct_str = f"{prob}%"
             elif is_active:
-                pct_str = "-%"
+                pct_str = "0%"
                 p_col = self.MUTED
             else:
                 pct_str = ""
