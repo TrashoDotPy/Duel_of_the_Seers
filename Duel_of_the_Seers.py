@@ -68,7 +68,11 @@ class ContesaApp:
         self.root = root
         self.root.title("Contesa dei Veggenti — Tracker & AI")
         self.root.configure(bg=self.BG)
-        self.root.resizable(False, False)
+        # Abilita ridimensionamento della finestra per essere responsive
+        self.root.resizable(True, True)
+        # Dimensioni base per le card (verranno scalate dinamicamente)
+        self.card_w = 48
+        self.card_h = 78
         self.bold = tkfont.Font(family="Helvetica", size=11, weight="bold")
         self.normal = tkfont.Font(family="Helvetica", size=11)
         self.small = tkfont.Font(family="Helvetica", size=9)
@@ -76,16 +80,21 @@ class ContesaApp:
         self.card_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
         self.suit_font = tkfont.Font(family="Helvetica", size=9)
         self._build_ui()
+        # Aggancia gestore resize per adattare font e widget
+        self.root.bind("<Configure>", self._on_resize)
+        # Forza una prima normalizzazione delle dimensioni
+        self._on_resize()
         self._init_game()
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
         tk.Label(self.root, text="Contesa dei Veggenti", bg=self.BG, fg=self.FG,
-                 font=self.big).pack(fill="x", padx=10, pady=(10, 0))
-        tk.Label(self.root,
-                 text="Obiettivo: identifica le carte ancora possibili del computer e registra il risultato di ogni turno.",
-                 bg=self.BG, fg=self.FG, font=self.normal, wraplength=580, justify="left").pack(fill="x", padx=10, pady=(0, 10))
+             font=self.big).pack(fill="x", padx=10, pady=(10, 0))
+        self.desc_label = tk.Label(self.root,
+             text="Obiettivo: identifica le carte ancora possibili del computer e registra il risultato di ogni turno.",
+             bg=self.BG, fg=self.FG, font=self.normal, wraplength=580, justify="left")
+        self.desc_label.pack(fill="x", padx=10, pady=(0, 10))
 
         stats = tk.Frame(self.root, bg=self.SECTION_BG, padx=10, pady=10)
         stats.pack(fill="x", padx=10, pady=(0, 8))
@@ -203,6 +212,60 @@ class ContesaApp:
                 pass
         self.banner_label.config(text="Installa Pillow per mostrare il banner: pip install Pillow")
         self.banner_photo = None
+
+    def _on_resize(self, event=None):
+        """Adatta font e dimensioni dei widget in base alla larghezza della finestra."""
+        try:
+            w = self.root.winfo_width() or 600
+            # scale basato sulla larghezza rispetto al layout di default 600px
+            scale = max(0.6, min(w / 600.0, 2.0))
+
+            # Aggiorna dimensioni font
+            self.big.configure(size=max(10, int(18 * scale)))
+            self.normal.configure(size=max(8, int(11 * scale)))
+            self.small.configure(size=max(7, int(9 * scale)))
+            self.card_font.configure(size=max(8, int(14 * scale)))
+            self.suit_font.configure(size=max(6, int(9 * scale)))
+
+            # Aggiorna dimensioni card
+            self.card_w = max(28, int(48 * scale))
+            self.card_h = max(42, int(78 * scale))
+
+            # Aggiorna card già renderizzate nel mazzo CPU
+            if hasattr(self, 'cpu_deck_frame'):
+                for outer in self.cpu_deck_frame.winfo_children():
+                    try:
+                        inner_children = outer.winfo_children()
+                        if inner_children:
+                            inner = inner_children[0]
+                            inner.config(width=self.card_w, height=self.card_h)
+                            inner.pack_propagate(False)
+                    except Exception:
+                        pass
+
+            # Aggiorna possibili card nella main_frame (azione)
+            if hasattr(self, 'main_frame'):
+                for child in self.main_frame.winfo_children():
+                    try:
+                        for sub in child.winfo_children():
+                            if isinstance(sub, tk.Frame):
+                                try:
+                                    sub.config(width=self.card_w, height=self.card_h)
+                                    sub.pack_propagate(False)
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+
+            # Aggiorna wraplength della descrizione
+            try:
+                wrap = max(200, w - 40)
+                if hasattr(self, 'desc_label'):
+                    self.desc_label.config(wraplength=wrap)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def _reset_cpu_deck(self):
         self.cpu_possible = list(ALL_CARDS)
@@ -550,7 +613,7 @@ class ContesaApp:
 
             outer = tk.Frame(self.cpu_deck_frame, bg=bd, padx=1, pady=1)
             outer.pack(side="left", padx=3)
-            inner = tk.Frame(outer, bg=bg, width=48, height=78, bd=1, relief="solid")
+            inner = tk.Frame(outer, bg=bg, width=self.card_w, height=self.card_h, bd=1, relief="solid")
             inner.pack()
             inner.pack_propagate(False)
             tk.Label(inner, text=str(c), bg=bg, fg=fg, font=self.bold).pack(expand=True)
@@ -641,7 +704,7 @@ class ContesaApp:
 
             outer = tk.Frame(cards_row, bg=bd, padx=1, pady=1)
             outer.pack(side="left", padx=3)
-            inner = tk.Frame(outer, bg=bg, width=46, height=78)
+            inner = tk.Frame(outer, bg=bg, width=self.card_w, height=self.card_h)
             inner.pack()
             inner.pack_propagate(False)
             tk.Label(inner, text=str(c), bg=bg, fg=fg, font=self.card_font).pack(expand=True)
