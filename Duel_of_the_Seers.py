@@ -509,7 +509,82 @@ class ContesaApp:
                 used.remove(c)
 
         dfs(0, set())
-        return possible_remaining if possible_remaining else manual
+        result = possible_remaining if possible_remaining else manual
+        
+        # ═ DEDUZIONE: Se il PC ha esaurito un colore, rimuovilo dal mazzo ═
+        result = self._deduce_exhausted_colors(result)
+        
+        return result
+
+    def _deduce_exhausted_colors(self, possible_cards):
+        """
+        Se il PC ha giocato SOLO di un colore negli ultimi N turni
+        (dove N >= numero di carte iniziali di quel colore),
+        allora il PC ha finito tutte le carte di quel colore.
+        
+        Nel gioco, il PC ha sempre:
+        - 5 carte nere (0,2,4,6,8)
+        - 4 carte bianche (1,3,5,7)
+        
+        Esempio: Se il PC ha giocato nero nei turni 1,2,3,4,5,
+        allora il PC ha finito tutte le 5 nere.
+        """
+        if len(self.turn_history) < 1:
+            return possible_cards
+        
+        blacks = [c for c in possible_cards if is_black(c)]
+        whites = [c for c in possible_cards if not is_black(c)]
+        
+        print(f"[DEBUG] _deduce_exhausted_colors: blacks={blacks}, whites={whites}")
+        
+        if not blacks or not whites:
+            # Un colore è già finito, niente da dedurre
+            print(f"[DEBUG] Un colore è già finito")
+            return possible_cards
+        
+        # Conta i turni recenti per colore (guardando all'indietro)
+        # fino al primo cambio di colore
+        recent_blacks = 0
+        recent_whites = 0
+        
+        for t in reversed(self.turn_history):
+            if t["cpu_color"] == "black":
+                recent_blacks += 1
+                if recent_whites > 0:
+                    # Il PC ha alternato colori, smetti di contare
+                    break
+            else:
+                recent_whites += 1
+                if recent_blacks > 0:
+                    # Il PC ha alternato colori, smetti di contare
+                    break
+        
+        print(f"[DEBUG] Turni recenti: nero={recent_blacks}, bianco={recent_whites}")
+        
+        # Se il PC ha giocato SOLO nero per 5+ turni,
+        # il PC ha finito tutte le 5 nere
+        if recent_blacks >= 5 and recent_whites == 0:
+            print(f"[DEBUG] PC ha finito le NERE! Rimangono solo bianche: {whites}")
+            return set(whites) if whites else possible_cards
+        
+        # Se il PC ha giocato SOLO bianco per 4+ turni,
+        # il PC ha finito tutte le 4 bianche
+        if recent_whites >= 4 and recent_blacks == 0:
+            print(f"[DEBUG] PC ha finito le BIANCHE! Rimangono solo nere: {blacks}")
+            return set(blacks) if blacks else possible_cards
+        
+        # ═ ALTERNATIVA: Se uno dei due colori ha 0 carte e l'altro ha carte,
+        # allora il PC ha finito il colore con 0 carte
+        if len(blacks) == 0 and len(whites) > 0:
+            print(f"[DEBUG] Nere già assenti da deduzioni bayesiane, rimangono: {whites}")
+            return set(whites)
+        
+        if len(whites) == 0 and len(blacks) > 0:
+            print(f"[DEBUG] Bianche già assenti da deduzioni bayesiane, rimangono: {blacks}")
+            return set(blacks)
+        
+        print(f"[DEBUG] Nessuna deduzione applicata")
+        return possible_cards
 
     # ── RENDER ────────────────────────────────────────────────────────────────
 
@@ -915,7 +990,9 @@ class ContesaApp:
             "feedback": self.feedback,
         })
 
+        print(f"[DEBUG _confirm_turn] Prima di deduce: cpu_possible={self.cpu_possible}, turn_history length={len(self.turn_history)}")
         self.cpu_possible = sorted(self._deduce_cpu_remaining())
+        print(f"[DEBUG _confirm_turn] Dopo deduce: cpu_possible={self.cpu_possible}")
         self.turn += 1
         self.my_card = None
         self.feedback = None
